@@ -7,6 +7,7 @@ import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import AdminDashboardPage from '../pages/Admin/AdminDashboardPage';
 import ImportarExcelPage from '../pages/Admin/ImportarExcelPage';
+import Matriculas from '../pages/Admin/Matriculas';
 import SuperAdminDashboardPage from '../pages/SuperAdmin/SuperAdminDashboardPage';
 import LiderDashboardPage from '../pages/Lider/LiderDashboardPage';
 import IntegranteDashboardPage from '../pages/Integrante/IntegranteDashboardPage';
@@ -102,6 +103,9 @@ const AppRouter = () => {
           
           {/* Rutas del Admin */}
           <Route path="/admin/importar-excel" element={<ImportarExcelPage />} />
+          <Route path="/matriculas/importar" element={<ImportarExcelPage />} />
+          <Route path="/admin/matriculas" element={<Matriculas />} />
+          <Route path="/matriculas" element={<Matriculas />} />
           
           {/* Ruta /dashboard redirige según el rol */}
           <Route path="/dashboard" element={<NavigateToDashboard />} />

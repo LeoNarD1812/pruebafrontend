@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
     FaTachometerAlt,
     FaUsers,
@@ -52,6 +52,7 @@ const iconMap = {
 
 const Sidebar = () => {
     const { user } = useAuth();
+    const location = useLocation(); // Hook para obtener la ruta actual
     const [menuData, setMenuData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedGroups, setExpandedGroups] = useState({});
@@ -68,10 +69,9 @@ const Sidebar = () => {
                 const menuItems = await menuService.getMenuByUser(user.user);
                 setMenuData(menuItems);
 
-                // SOLUCIÓN: Expandir solo el PRIMER grupo
+                // Expandir solo el PRIMER grupo
                 const initiallyExpanded = {};
                 if (menuItems.length > 0) {
-                    // Solo expande el primer grupo que tenga items
                     const firstGroupWithItems = menuItems.find(group =>
                         group.items && group.items.length > 0
                     );
@@ -90,6 +90,17 @@ const Sidebar = () => {
 
         loadMenu();
     }, [user]);
+
+    // Función para determinar si un item está activo
+    const isItemActive = (itemPath) => {
+        return location.pathname === itemPath;
+    };
+
+    // Función para determinar si un grupo tiene algún item activo
+    const hasActiveItem = (group) => {
+        if (!group.items) return false;
+        return group.items.some(item => isItemActive(item.path));
+    };
 
     const toggleGroup = (groupId) => {
         setExpandedGroups(prev => {
@@ -116,13 +127,35 @@ const Sidebar = () => {
         return <IconComponent className="nav-icon" />;
     };
 
+    // Efecto para expandir automáticamente el grupo que contiene la ruta activa
+    useEffect(() => {
+        if (menuData.length === 0) return;
+
+        const newExpandedGroups = { ...expandedGroups };
+        let foundActive = false;
+
+        // Buscar el grupo que contiene la ruta activa
+        menuData.forEach(group => {
+            if (group.items && group.items.some(item => isItemActive(item.path))) {
+                newExpandedGroups[group.id] = true;
+                foundActive = true;
+            } else {
+                // Solo cerrar grupos si no es el inicial
+                if (!expandedGroups[group.id]) {
+                    newExpandedGroups[group.id] = false;
+                }
+            }
+        });
+
+        // Si no se encontró ningún item activo, mantener el estado actual
+        if (foundActive) {
+            setExpandedGroups(newExpandedGroups);
+        }
+    }, [location.pathname, menuData]);
+
     if (loading) {
         return (
             <aside className="sidebar">
-                {/* <div className="cloud cloud-1"></div>
-                <div className="cloud cloud-2"></div>
-                <div className="cloud cloud-3"></div> */}
-
                 <div className="sidebar-loading">
                     <FaSpinner className="spinner" />
                     <span>Cargando menú...</span>
@@ -133,12 +166,6 @@ const Sidebar = () => {
 
     return (
         <aside className="sidebar">
-            {/* Nubes animadas - Desactivadas temporalmente */}
-            {/* <div className="cloud cloud-1"></div>
-            <div className="cloud cloud-2"></div>
-            <div className="cloud cloud-3"></div> */}
-
-            {/* Navegación */}
             <nav className="sidebar-nav">
                 <ul>
                     {menuData.length === 0 ? (
@@ -153,7 +180,7 @@ const Sidebar = () => {
                                 {group.items && group.items.length > 0 ? (
                                     <div className="nav-group">
                                         <div
-                                            className="nav-link nav-group-header"
+                                            className={`nav-link nav-group-header ${hasActiveItem(group) ? 'group-active' : ''}`}
                                             onClick={() => toggleGroup(group.id)}
                                             style={{ cursor: 'pointer', justifyContent: 'space-between' }}
                                         >
@@ -176,6 +203,8 @@ const Sidebar = () => {
                                                                 isActive ? 'nav-link active' : 'nav-link'
                                                             }
                                                             style={{ paddingLeft: '40px' }}
+                                                            // Asegurar que solo este item esté activo
+                                                            end // Esto asegura que la coincidencia sea exacta
                                                         >
                                                             {getIconComponent(item.icon)}
                                                             <span>{item.label}</span>
@@ -191,6 +220,7 @@ const Sidebar = () => {
                                         className={({ isActive }) =>
                                             isActive ? 'nav-link active' : 'nav-link'
                                         }
+                                        end // Esto asegura que la coincidencia sea exacta
                                     >
                                         {getIconComponent(group.icon)}
                                         <span>{group.name}</span>
