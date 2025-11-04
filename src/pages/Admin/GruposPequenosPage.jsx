@@ -660,6 +660,7 @@ const GruposPequenosPage = () => {
             )}
         </div>
     );
+
 };
 
 export default GruposPequenosPage;

@@ -21,4 +21,18 @@ export const grupoPequenoService = {
             throw error;
         }
     },
+    /**
+     * LÍDER: Obtiene los grupos pequeños asignados a un líder específico.
+     * Llama a: GET /grupos-pequenos/lider/{liderId}
+     */
+    findByLider: async (liderId) => {
+        try {
+            const response = await api.get(`/${ENDPOINT}/lider/${liderId}`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error al obtener grupos para el líder ${liderId}:`, error);
+            throw error;
+        }
+    },
+
 };

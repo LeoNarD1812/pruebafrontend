@@ -1,0 +1,52 @@
+/* ... (todo tu CSS existente) ... */
+
+/* Estilos para el modal grande */
+.modal-content.large-modal {
+    max-width: 900px;
+}
+
+/* Estilos para los botones de asistencia */
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 12px;
+    gap: 5px;
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: white;
+}
+.btn-success:hover {
+    background-color: #229954;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: white;
+}
+.btn-warning:hover {
+    background-color: #d35400;
+}
+
+.btn-info {
+    background-color: #3498db;
+    color: white;
+}
+.btn-info:hover {
+    background-color: #2980b9;
+}
+
+.btn-sm:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #bdc3c7;
+}
+
+/* Badges de estado de asistencia */
+.badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}

@@ -23,6 +23,9 @@ import Programas from '../pages/Admin/Programas.jsx';
 import ReportesPage from '../pages/Admin/ReportesPage';
 import RegistrarAsistenciaPage from '../pages/Lider/RegistrarAsistenciaPage';
 import EscanearQRPage from '../pages/Integrante/EscanearQRPage';
+import MisGruposPage from '../pages/Lider/MisGruposPage';
+import VerAsistenciasPage from '../pages/Lider/VerAsistenciasPage';
+import MisAsistenciasPage from '../pages/lider/MisAsistenciasPage';
 
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -160,6 +163,10 @@ const AppRouter = () => {
                     <Route path="/grupos-pequenos" element={<GruposPequenosPage />} />
                     <Route path="/reportes" element={<ReportesPage />} />
                     <Route path="/asistencias/reporte" element={<ReportesPage />} />
+
+                    <Route path="/grupos-pequenos/lider" element={<MisGruposPage />} />
+                    <Route path="/asistencias" element={<VerAsistenciasPage />} />
+                    <Route path="/asistencias/persona" element={<MisAsistenciasPage />} />
 
                     <Route path="/asistencias/registrar" element={<RegistrarAsistenciaPage />} />
 
