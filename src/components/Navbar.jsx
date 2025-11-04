@@ -1,5 +1,6 @@
 import { useAuth } from '../hooks/useAuth';
 import { FaUser, FaSignOutAlt, FaChurch } from 'react-icons/fa';
+import './components.css';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -11,27 +12,19 @@ const Navbar = () => {
 
     return (
         <nav className="navbar">
-            {/* Nubes animadas - Desactivadas temporalmente */}
-            {/* <div className="cloud cloud-1"></div>
-            <div className="cloud cloud-2"></div> */}
-
             <div className="navbar-brand">
-                <div className="navbar-logo">
-                    <FaChurch />
-                    <span>SysAsistencia</span>
-                </div>
+                <FaChurch />
+                <span>SysAsistencia</span>
             </div>
 
             <div className="navbar-menu">
                 {user && (
                     <div className="navbar-user">
-                        <div className="user-info">
-                            <FaUser className="nav-icon" />
-                            <span>{user.persona?.nombreCompleto || user.user}</span>
-                        </div>
-                        <button onClick={handleLogout} className="btn-logout">
+                        <FaUser />
+                        <span>{user.persona?.nombreCompleto || user.user}</span>
+                        <button onClick={handleLogout} className="btn btn-danger">
                             <FaSignOutAlt />
-                            <span>Cerrar Sesión</span>
+                            Cerrar Sesión
                         </button>
                     </div>
                 )}
@@ -41,8 +34,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-
-
-
-
-

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { FaDownload, FaUpload, FaFileExcel, FaCheckCircle, FaExclamationCircle, FaInfoCircle, FaFileExport, FaFilter } from 'react-icons/fa';
+import { FaDownload, FaUpload, FaFileExcel, FaCheckCircle, FaExclamationCircle, FaInfoCircle, FaFileExport, FaFilter, FaCalendarAlt } from 'react-icons/fa';
 import { importService } from '../../services/importService';
-import './admin-global.css';
+import { periodosService } from '../../services/periodosService';
+
 const ImportarExcelPage = () => {
     const [sedes, setSedes] = useState([]);
     const [facultades, setFacultades] = useState([]);
     const [programas, setProgramas] = useState([]);
+    const [periodos, setPeriodos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [exportLoading, setExportLoading] = useState(false);
     const [showFiltrosExport, setShowFiltrosExport] = useState(false);
@@ -13,12 +15,14 @@ const ImportarExcelPage = () => {
         sedeId: '',
         facultadId: '',
         programaId: '',
+        periodoId: '',
         tipoPersona: '',
     });
     const [filtrosExport, setFiltrosExport] = useState({
         sedeId: '',
         facultadId: '',
         programaId: '',
+        periodoId: '',
         tipoPersona: '',
     });
     const [importResults, setImportResults] = useState(null);
@@ -67,8 +71,12 @@ const ImportarExcelPage = () => {
 
     const loadCatalogs = async () => {
         try {
-            const sedesData = await importService.getSedes();
+            const [sedesData, periodosData] = await Promise.all([
+                importService.getSedes(),
+                periodosService.getAll()
+            ]);
             setSedes(sedesData);
+            setPeriodos(periodosData.data);
         } catch (error) {
             console.error('Error cargando catálogos:', error);
         }
@@ -152,6 +160,7 @@ const ImportarExcelPage = () => {
             sedeId: '',
             facultadId: '',
             programaId: '',
+            periodoId: '',
             tipoPersona: '',
         });
     };
@@ -212,6 +221,10 @@ const ImportarExcelPage = () => {
     const handleImportar = async () => {
         if (!selectedFile) {
             alert('Por favor selecciona un archivo primero');
+            return;
+        }
+        if (!filtros.periodoId) {
+            alert('Por favor selecciona un periodo para la importación');
             return;
         }
 
@@ -286,7 +299,7 @@ const ImportarExcelPage = () => {
     }, [filtrosExport.facultadId]);
 
     return (
-        <div className="import-excel-container">
+        <div className="page-container">
             {/* Header */}
             <div className="page-header">
                 <div className="header-title">
@@ -301,7 +314,7 @@ const ImportarExcelPage = () => {
                     <div className="action-buttons">
                         <button
                             onClick={handleDescargarPlantilla}
-                            className="btn-template"
+                            className="btn btn-secondary"
                             disabled={loading}
                         >
                             <FaDownload /> Descargar Plantilla
@@ -309,7 +322,7 @@ const ImportarExcelPage = () => {
                         <div className="export-dropdown">
                             <button
                                 onClick={handleAbrirFiltrosExport}
-                                className="btn-export"
+                                className="btn btn-primary"
                                 disabled={exportLoading}
                             >
                                 <FaFileExport />
@@ -392,6 +405,23 @@ const ImportarExcelPage = () => {
                                 </div>
 
                                 <div className="form-group">
+                                    <label>Periodo</label>
+                                    <select
+                                        name="periodoId"
+                                        value={filtrosExport.periodoId}
+                                        onChange={handleFiltroExportChange}
+                                        className="form-select"
+                                    >
+                                        <option value="">Todos los Periodos</option>
+                                        {periodos.map((p) => (
+                                            <option key={p.idPeriodo} value={p.idPeriodo}>
+                                                {p.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="form-group">
                                     <label>Tipo de Persona</label>
                                     <select
                                         name="tipoPersona"
@@ -410,7 +440,7 @@ const ImportarExcelPage = () => {
                                 <h4>Resumen de Filtros:</h4>
                                 <p>
                                     {!filtrosExport.sedeId && !filtrosExport.facultadId &&
-                                    !filtrosExport.programaId && !filtrosExport.tipoPersona
+                                    !filtrosExport.programaId && !filtrosExport.periodoId && !filtrosExport.tipoPersona
                                         ? 'Exportando todos los datos sin filtros'
                                         : `Filtros aplicados: ${
                                             filtrosExport.sedeId ? 'Sede específica, ' : ''
@@ -418,6 +448,8 @@ const ImportarExcelPage = () => {
                                             filtrosExport.facultadId ? 'Facultad específica, ' : ''
                                         }${
                                             filtrosExport.programaId ? 'Programa específico, ' : ''
+                                        }${
+                                            filtrosExport.periodoId ? 'Periodo específico, ' : ''
                                         }${
                                             filtrosExport.tipoPersona ? 'Tipo de persona específico' : ''
                                         }`.replace(/, $/, '')
@@ -429,7 +461,7 @@ const ImportarExcelPage = () => {
                         <div className="modal-footer">
                             <button
                                 onClick={handleExportarSinFiltros}
-                                className="btn-secondary"
+                                className="btn btn-secondary"
                                 disabled={exportLoading}
                             >
                                 Exportar Sin Filtros
@@ -437,14 +469,14 @@ const ImportarExcelPage = () => {
                             <div className="modal-actions">
                                 <button
                                     onClick={handleCerrarFiltrosExport}
-                                    className="btn-cancel"
+                                    className="btn btn-secondary"
                                     disabled={exportLoading}
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={handleExportarDatos}
-                                    className="btn-export-confirm"
+                                    className="btn btn-primary"
                                     disabled={exportLoading}
                                 >
                                     <FaFileExport />
@@ -458,7 +490,7 @@ const ImportarExcelPage = () => {
 
             {/* Resultados de Importación */}
             {importResults && (
-                <div className={`import-result ${importResults.fallidos === 0 ? 'success' : 'warning'}`}>
+                <div className={`alert ${importResults.fallidos === 0 ? 'alert-success' : 'alert-warning'}`}>
                     {importResults.fallidos === 0 ? (
                         <FaCheckCircle className="result-icon" />
                     ) : (
@@ -499,7 +531,7 @@ const ImportarExcelPage = () => {
                         )}
                     </div>
                     <button
-                        className="close-result"
+                        className="close-modal"
                         onClick={limpiarResultados}
                     >
                         ✕
@@ -508,7 +540,7 @@ const ImportarExcelPage = () => {
             )}
 
             {/* Card Principal */}
-            <div className="import-card">
+            <div className="card">
                 <div className="card-header">
                     <h2>Configuración de Importación</h2>
                 </div>
@@ -571,6 +603,24 @@ const ImportarExcelPage = () => {
                         </div>
 
                         <div className="form-group">
+                            <label><FaCalendarAlt /> Periodo</label>
+                            <select
+                                name="periodoId"
+                                value={filtros.periodoId}
+                                onChange={handleFiltroChange}
+                                className="form-select"
+                                required
+                            >
+                                <option value="">Seleccione un Periodo</option>
+                                {periodos.map((p) => (
+                                    <option key={p.idPeriodo} value={p.idPeriodo}>
+                                        {p.nombre}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
                             <label>Tipo de Persona</label>
                             <select
                                 name="tipoPersona"
@@ -602,7 +652,7 @@ const ImportarExcelPage = () => {
                             <div className="file-actions">
                                 <button
                                     onClick={handleImportar}
-                                    className="btn-import-action"
+                                    className="btn btn-primary"
                                     disabled={loading}
                                 >
                                     {loading ? (
@@ -618,7 +668,7 @@ const ImportarExcelPage = () => {
                                 </button>
                                 <button
                                     onClick={limpiarResultados}
-                                    className="btn-cancel"
+                                    className="btn btn-secondary"
                                     disabled={loading}
                                 >
                                     Cancelar
@@ -631,7 +681,7 @@ const ImportarExcelPage = () => {
                             <div className="upload-content">
                                 <h4>Selecciona tu archivo Excel</h4>
                                 <p>Arrastra y suelta o haz clic para seleccionar</p>
-                                <label className="btn-import">
+                                <label className="btn btn-primary">
                                     <FaUpload /> Seleccionar Archivo
                                     <input
                                         id="fileInput"
@@ -657,8 +707,10 @@ const ImportarExcelPage = () => {
             </div>
 
             {/* Instrucciones */}
-            <div className="instructions-card">
-                <h3><FaInfoCircle /> Instrucciones de Uso</h3>
+            <div className="card">
+                <div className="card-header">
+                    <h3><FaInfoCircle /> Instrucciones de Uso</h3>
+                </div>
                 <div className="instructions-list">
                     <div className="instruction-item">
                         <span className="instruction-number">1</span>

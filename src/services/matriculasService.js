@@ -16,6 +16,7 @@ export const matriculasService = {
         if (filtros.sedeId) params.sedeId = filtros.sedeId;
         if (filtros.facultadId) params.facultadId = filtros.facultadId;
         if (filtros.programaId) params.programaId = filtros.programaId;
+        if (filtros.periodoId) params.periodoId = filtros.periodoId;
         if (filtros.tipoPersona) params.tipoPersona = filtros.tipoPersona;
 
         return api.get('/matriculas/filtrar', { params });

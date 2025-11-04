@@ -23,10 +23,10 @@ import {
     FaUserPlus,
     FaSpinner
 } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { menuService } from '../services/menuService';
+import './components.css';
 
-// Mapeo de iconos
 const iconMap = {
     'fa-tachometer-alt': FaTachometerAlt,
     'fa-users': FaUsers,
@@ -52,10 +52,10 @@ const iconMap = {
 
 const Sidebar = () => {
     const { user } = useAuth();
-    const location = useLocation(); // Hook para obtener la ruta actual
+    const location = useLocation();
     const [menuData, setMenuData] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [expandedGroups, setExpandedGroups] = useState({});
+    const [expandedGroup, setExpandedGroup] = useState(null);
 
     useEffect(() => {
         const loadMenu = async () => {
@@ -69,17 +69,9 @@ const Sidebar = () => {
                 const menuItems = await menuService.getMenuByUser(user.user);
                 setMenuData(menuItems);
 
-                // Expandir solo el PRIMER grupo
-                const initiallyExpanded = {};
-                if (menuItems.length > 0) {
-                    const firstGroupWithItems = menuItems.find(group =>
-                        group.items && group.items.length > 0
-                    );
-                    if (firstGroupWithItems) {
-                        initiallyExpanded[firstGroupWithItems.id] = true;
-                    }
-                }
-                setExpandedGroups(initiallyExpanded);
+                const activeGroup = menuItems.find(group => group.items?.some(item => location.pathname === item.path));
+                setExpandedGroup(activeGroup?.id || menuItems.find(group => group.items)?.id || null);
+
             } catch (error) {
                 console.error('Error cargando menú:', error);
                 setMenuData([]);
@@ -89,69 +81,17 @@ const Sidebar = () => {
         };
 
         loadMenu();
-    }, [user]);
-
-    // Función para determinar si un item está activo
-    const isItemActive = (itemPath) => {
-        return location.pathname === itemPath;
-    };
-
-    // Función para determinar si un grupo tiene algún item activo
-    const hasActiveItem = (group) => {
-        if (!group.items) return false;
-        return group.items.some(item => isItemActive(item.path));
-    };
+    }, [user, location.pathname]);
 
     const toggleGroup = (groupId) => {
-        setExpandedGroups(prev => {
-            const newState = { ...prev };
-
-            // Cerrar todos los demás grupos
-            Object.keys(newState).forEach(key => {
-                if (key !== groupId.toString()) {
-                    newState[key] = false;
-                }
-            });
-
-            // Alternar el grupo actual
-            newState[groupId] = !prev[groupId];
-            return newState;
-        });
+        setExpandedGroup(expandedGroup === groupId ? null : groupId);
     };
 
     const getIconComponent = (iconName) => {
-        if (!iconName) return <FaChartLine className="nav-icon" />;
-
-        const cleanIconName = iconName.replace('fa-', '');
-        const IconComponent = iconMap[iconName] || iconMap[cleanIconName] || FaChartLine;
-        return <IconComponent className="nav-icon" />;
+        if (!iconName) return <FaChartLine />;
+        const IconComponent = iconMap[iconName] || FaChartLine;
+        return <IconComponent />;
     };
-
-    // Efecto para expandir automáticamente el grupo que contiene la ruta activa
-    useEffect(() => {
-        if (menuData.length === 0) return;
-
-        const newExpandedGroups = { ...expandedGroups };
-        let foundActive = false;
-
-        // Buscar el grupo que contiene la ruta activa
-        menuData.forEach(group => {
-            if (group.items && group.items.some(item => isItemActive(item.path))) {
-                newExpandedGroups[group.id] = true;
-                foundActive = true;
-            } else {
-                // Solo cerrar grupos si no es el inicial
-                if (!expandedGroups[group.id]) {
-                    newExpandedGroups[group.id] = false;
-                }
-            }
-        });
-
-        // Si no se encontró ningún item activo, mantener el estado actual
-        if (foundActive) {
-            setExpandedGroups(newExpandedGroups);
-        }
-    }, [location.pathname, menuData]);
 
     if (loading) {
         return (
@@ -166,71 +106,40 @@ const Sidebar = () => {
 
     return (
         <aside className="sidebar">
-            <nav className="sidebar-nav">
-                <ul>
-                    {menuData.length === 0 ? (
-                        <li>
-                            <div className="nav-link" style={{ color: '#95a5a6', justifyContent: 'center' }}>
-                                Sin accesos
-                            </div>
-                        </li>
-                    ) : (
-                        menuData.map((group) => (
-                            <li key={group.id}>
-                                {group.items && group.items.length > 0 ? (
-                                    <div className="nav-group">
-                                        <div
-                                            className={`nav-link nav-group-header ${hasActiveItem(group) ? 'group-active' : ''}`}
-                                            onClick={() => toggleGroup(group.id)}
-                                            style={{ cursor: 'pointer', justifyContent: 'space-between' }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                {getIconComponent(group.icon)}
-                                                <span>{group.name}</span>
-                                            </div>
-                                            {expandedGroups[group.id] ?
-                                                <FaChevronDown size={12} /> :
-                                                <FaChevronRight size={12} />
-                                            }
-                                        </div>
-                                        {expandedGroups[group.id] && (
-                                            <ul style={{ paddingLeft: '20px' }}>
-                                                {group.items.map((item) => (
-                                                    <li key={item.id}>
-                                                        <NavLink
-                                                            to={item.path}
-                                                            className={({ isActive }) =>
-                                                                isActive ? 'nav-link active' : 'nav-link'
-                                                            }
-                                                            style={{ paddingLeft: '40px' }}
-                                                            // Asegurar que solo este item esté activo
-                                                            end // Esto asegura que la coincidencia sea exacta
-                                                        >
-                                                            {getIconComponent(item.icon)}
-                                                            <span>{item.label}</span>
-                                                        </NavLink>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <NavLink
-                                        to={group.path}
-                                        className={({ isActive }) =>
-                                            isActive ? 'nav-link active' : 'nav-link'
-                                        }
-                                        end // Esto asegura que la coincidencia sea exacta
-                                    >
+            <ul className="sidebar-menu">
+                {menuData.map((group) => (
+                    <li key={group.id} className="sidebar-item">
+                        {group.items ? (
+                            <>
+                                <div onClick={() => toggleGroup(group.id)} className="sidebar-group-header">
+                                    <div>
                                         {getIconComponent(group.icon)}
                                         <span>{group.name}</span>
-                                    </NavLink>
+                                    </div>
+                                    {expandedGroup === group.id ? <FaChevronDown /> : <FaChevronRight />}
+                                </div>
+                                {expandedGroup === group.id && (
+                                    <ul className="sidebar-submenu">
+                                        {group.items.map((item) => (
+                                            <li key={item.id} className="sidebar-item">
+                                                <NavLink to={item.path} className={({ isActive }) => (isActive ? 'active' : '')}>
+                                                    {getIconComponent(item.icon)}
+                                                    <span>{item.label}</span>
+                                                </NavLink>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 )}
-                            </li>
-                        ))
-                    )}
-                </ul>
-            </nav>
+                            </>
+                        ) : (
+                            <NavLink to={group.path} className={({ isActive }) => (isActive ? 'active' : '')}>
+                                {getIconComponent(group.icon)}
+                                <span>{group.name}</span>
+                            </NavLink>
+                        )}
+                    </li>
+                ))}
+            </ul>
         </aside>
     );
 };

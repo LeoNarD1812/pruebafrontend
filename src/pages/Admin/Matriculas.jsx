@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FaClipboardList, FaSearch, FaFilter, FaSync, FaUsers, FaUniversity, FaGraduationCap, FaUserTag, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaClipboardList, FaSearch, FaFilter, FaSync, FaUsers, FaUniversity, FaGraduationCap, FaUserTag, FaChevronLeft, FaChevronRight, FaCalendarAlt } from 'react-icons/fa';
 import { importService } from '../../services/importService';
 import { matriculasService } from '../../services/matriculasService';
+import { periodosService } from '../../services/periodosService';
 
 const Matriculas = () => {
     const [matriculas, setMatriculas] = useState([]);
@@ -10,12 +11,14 @@ const Matriculas = () => {
         sedeId: '',
         facultadId: '',
         programaId: '',
+        periodoId: '',
         tipoPersona: '',
     });
     const [searchTerm, setSearchTerm] = useState('');
     const [sedes, setSedes] = useState([]);
     const [facultades, setFacultades] = useState([]);
     const [programas, setProgramas] = useState([]);
+    const [periodos, setPeriodos] = useState([]);
 
     // Estados para paginación
     const [currentPage, setCurrentPage] = useState(1);
@@ -28,10 +31,13 @@ const Matriculas = () => {
     const cargarDatosIniciales = async () => {
         try {
             setLoading(true);
-            await Promise.all([
-                cargarSedes(),
-                cargarMatriculas()
+            const [sedesData, periodosData] = await Promise.all([
+                importService.getSedes(),
+                periodosService.getAll()
             ]);
+            setSedes(sedesData || []);
+            setPeriodos(periodosData.data || []);
+            await cargarMatriculas();
         } catch (error) {
             console.error('Error cargando datos iniciales:', error);
             alert('Error al cargar los datos iniciales');
@@ -40,19 +46,10 @@ const Matriculas = () => {
         }
     };
 
-    const cargarSedes = async () => {
-        try {
-            const sedesData = await importService.getSedes();
-            setSedes(sedesData);
-        } catch (error) {
-            console.error('Error cargando sedes:', error);
-        }
-    };
-
     const cargarFacultades = async (sedeId) => {
         try {
             const facultadesData = await importService.getFacultades(sedeId);
-            setFacultades(facultadesData);
+            setFacultades(facultadesData || []);
         } catch (error) {
             console.error('Error cargando facultades:', error);
         }
@@ -61,7 +58,7 @@ const Matriculas = () => {
     const cargarProgramas = async (facultadId) => {
         try {
             const programasData = await importService.getProgramas(facultadId);
-            setProgramas(programasData);
+            setProgramas(programasData || []);
         } catch (error) {
             console.error('Error cargando programas:', error);
         }
@@ -71,7 +68,7 @@ const Matriculas = () => {
         try {
             setLoading(true);
             const response = await matriculasService.getAll();
-            setMatriculas(response.data);
+            setMatriculas(response.data || []);
             setCurrentPage(1); // Resetear a primera página al cargar nuevos datos
         } catch (error) {
             console.error('Error cargando matrículas:', error);
@@ -86,9 +83,9 @@ const Matriculas = () => {
             setLoading(true);
 
             // Si hay filtros activos, usar el endpoint de filtros
-            if (filtros.sedeId || filtros.facultadId || filtros.programaId || filtros.tipoPersona) {
+            if (filtros.sedeId || filtros.facultadId || filtros.programaId || filtros.periodoId || filtros.tipoPersona) {
                 const response = await matriculasService.getByFiltros(filtros);
-                setMatriculas(response.data);
+                setMatriculas(response.data || []);
             } else {
                 // Si no hay filtros, cargar todas
                 await cargarMatriculas();
@@ -107,6 +104,7 @@ const Matriculas = () => {
             sedeId: '',
             facultadId: '',
             programaId: '',
+            periodoId: '',
             tipoPersona: '',
         });
         setSearchTerm('');
@@ -139,7 +137,7 @@ const Matriculas = () => {
     };
 
     // Filtrar matrículas por término de búsqueda
-    const matriculasFiltradas = matriculas.filter(matricula =>
+    const matriculasFiltradas = (matriculas || []).filter(matricula =>
         matricula.nombreCompleto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         matricula.codigoEstudiante?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         matricula.documento?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -197,11 +195,11 @@ const Matriculas = () => {
 
     // Estadísticas
     const totalMatriculas = matriculas.length;
-    const estudiantes = matriculas.filter(m => m.tipoPersona === 'ESTUDIANTE').length;
-    const invitados = matriculas.filter(m => m.tipoPersona === 'INVITADO').length;
+    const estudiantes = (matriculas || []).filter(m => m.tipoPersona === 'ESTUDIANTE').length;
+    const invitados = (matriculas || []).filter(m => m.tipoPersona === 'INVITADO').length;
 
     return (
-        <div className="matriculas-container">
+        <div className="page-container">
             {/* Header */}
             <div className="page-header">
                 <div className="header-title">
@@ -215,7 +213,7 @@ const Matriculas = () => {
                 <div className="header-actions">
                     <button
                         onClick={cargarMatriculas}
-                        className="btn-refresh"
+                        className="btn btn-secondary"
                         disabled={loading}
                     >
                         <FaSync /> {loading ? 'Actualizando...' : 'Actualizar'}
@@ -257,7 +255,7 @@ const Matriculas = () => {
             </div>
 
             {/* Card Principal */}
-            <div className="matriculas-card">
+            <div className="card">
                 <div className="card-header">
                     <h2>Filtros y Búsqueda</h2>
                 </div>
@@ -267,10 +265,10 @@ const Matriculas = () => {
                     <div className="filtros-header">
                         <h3><FaFilter /> Filtros Avanzados</h3>
                         <div className="filtros-actions">
-                            <button onClick={aplicarFiltros} className="btn-primary" disabled={loading}>
+                            <button onClick={aplicarFiltros} className="btn btn-primary" disabled={loading}>
                                 <FaFilter /> Aplicar Filtros
                             </button>
-                            <button onClick={limpiarFiltros} className="btn-secondary" disabled={loading}>
+                            <button onClick={limpiarFiltros} className="btn btn-secondary" disabled={loading}>
                                 Limpiar
                             </button>
                         </div>
@@ -287,7 +285,7 @@ const Matriculas = () => {
                                 disabled={loading}
                             >
                                 <option value="">Todas las Sedes</option>
-                                {sedes.map((sede) => (
+                                {(sedes || []).map((sede) => (
                                     <option key={sede.idSede} value={sede.idSede}>
                                         {sede.nombre}
                                     </option>
@@ -305,7 +303,7 @@ const Matriculas = () => {
                                 disabled={loading || !filtros.sedeId}
                             >
                                 <option value="">Todas las Facultades</option>
-                                {facultades.map((facultad) => (
+                                {(facultades || []).map((facultad) => (
                                     <option key={facultad.idFacultad} value={facultad.idFacultad}>
                                         {facultad.nombre}
                                     </option>
@@ -323,9 +321,27 @@ const Matriculas = () => {
                                 disabled={loading || !filtros.facultadId}
                             >
                                 <option value="">Todos los Programas</option>
-                                {programas.map((programa) => (
+                                {(programas || []).map((programa) => (
                                     <option key={programa.idPrograma} value={programa.idPrograma}>
                                         {programa.nombre}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label><FaCalendarAlt /> Periodo</label>
+                            <select
+                                name="periodoId"
+                                value={filtros.periodoId}
+                                onChange={handleFiltroChange}
+                                className="form-select"
+                                disabled={loading}
+                            >
+                                <option value="">Todos los Periodos</option>
+                                {(periodos || []).map((periodo) => (
+                                    <option key={periodo.idPeriodo} value={periodo.idPeriodo}>
+                                        {periodo.nombre}
                                     </option>
                                 ))}
                             </select>
@@ -358,7 +374,7 @@ const Matriculas = () => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             disabled={loading}
-                            className="search-input"
+                            className="form-input"
                         />
                     </div>
                     <div className="search-info">
@@ -371,7 +387,7 @@ const Matriculas = () => {
             </div>
 
             {/* Tabla de Matrículas */}
-            <div className="table-card">
+            <div className="card">
                 <div className="card-header">
                     <h2>Lista de Matrículas</h2>
                 </div>
@@ -397,7 +413,7 @@ const Matriculas = () => {
                                 </div>
                             ) : (
                                 <>
-                                    <table className="matriculas-table">
+                                    <table className="data-table">
                                         <thead>
                                         <tr>
                                             <th>Código</th>
@@ -406,6 +422,7 @@ const Matriculas = () => {
                                             <th>Sede</th>
                                             <th>Facultad</th>
                                             <th>Programa</th>
+                                            <th>Periodo</th>
                                             <th>Tipo</th>
                                             <th>Estado</th>
                                         </tr>
@@ -413,30 +430,19 @@ const Matriculas = () => {
                                         <tbody>
                                         {currentItems.map((matricula) => (
                                             <tr key={matricula.idMatricula}>
-                                                <td className="codigo-cell">
-                                                    <strong>{matricula.codigoEstudiante}</strong>
-                                                </td>
-                                                <td className="nombre-cell">
-                                                    {matricula.nombreCompleto}
-                                                </td>
-                                                <td className="documento-cell">
-                                                    {matricula.documento}
-                                                </td>
-                                                <td className="sede-cell">
-                                                    {matricula.sedeName || '-'}
-                                                </td>
-                                                <td className="facultad-cell">
-                                                    {matricula.facultadName || '-'}
-                                                </td>
-                                                <td className="programa-cell">
-                                                    {matricula.programaName || '-'}
-                                                </td>
-                                                <td className="tipo-cell">
+                                                <td>{matricula.codigoEstudiante}</td>
+                                                <td>{matricula.nombreCompleto}</td>
+                                                <td>{matricula.documento}</td>
+                                                <td>{matricula.sedeName || '-'}</td>
+                                                <td>{matricula.facultadName || '-'}</td>
+                                                <td>{matricula.programaName || '-'}</td>
+                                                <td>{matricula.periodoNombre || '-'}</td>
+                                                <td>
                                                     <span className={`badge ${matricula.tipoPersona?.toLowerCase()}`}>
                                                         {matricula.tipoPersona}
                                                     </span>
                                                 </td>
-                                                <td className="estado-cell">
+                                                <td>
                                                     <span className={`badge ${matricula.estado?.toLowerCase() || 'activo'}`}>
                                                         {matricula.estado || 'ACTIVO'}
                                                     </span>

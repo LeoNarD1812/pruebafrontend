@@ -31,6 +31,7 @@ export const importService = {
             if (filtros.sedeId) params.append('sedeId', filtros.sedeId);
             if (filtros.facultadId) params.append('facultadId', filtros.facultadId);
             if (filtros.programaId) params.append('programaId', filtros.programaId);
+            if (filtros.periodoId) params.append('periodoId', filtros.periodoId);
             if (filtros.tipoPersona) params.append('tipoPersona', filtros.tipoPersona);
 
             const response = await api.get(`/matriculas/exportar?${params.toString()}`, {
@@ -64,6 +65,7 @@ export const importService = {
             if (filtros.sedeId) formData.append('sedeId', filtros.sedeId);
             if (filtros.facultadId) formData.append('facultadId', filtros.facultadId);
             if (filtros.programaId) formData.append('programaId', filtros.programaId);
+            if (filtros.periodoId) formData.append('periodoId', filtros.periodoId);
             if (filtros.tipoPersona) formData.append('tipoPersona', filtros.tipoPersona);
 
             const response = await api.post('/matriculas/importar', formData, {
