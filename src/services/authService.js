@@ -15,7 +15,7 @@ export const authService = {
                 idUsuario: response.data.idUsuario,
                 user: response.data.user,
                 estado: response.data.estado,
-                ersonaId: personaId,
+                personaId: personaId,
             };
 
             if (token) {
