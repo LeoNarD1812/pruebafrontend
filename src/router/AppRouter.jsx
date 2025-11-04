@@ -20,6 +20,9 @@ import Matriculas from "../pages/Admin/Matriculas.jsx";
 import Sedes from '../pages/Admin/Sedes.jsx';
 import Facultades from '../pages/Admin/Facultades.jsx';
 import Programas from '../pages/Admin/Programas.jsx';
+import ReportesPage from '../pages/Admin/ReportesPage';
+import RegistrarAsistenciaPage from '../pages/Lider/RegistrarAsistenciaPage';
+import EscanearQRPage from '../pages/Integrante/EscanearQRPage';
 
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -155,6 +158,12 @@ const AppRouter = () => {
                     <Route path="/eventos-especificos" element={<SesionesPage />} />
                     <Route path="/grupos-generales" element={<GruposGeneralesPage />} />
                     <Route path="/grupos-pequenos" element={<GruposPequenosPage />} />
+                    <Route path="/reportes" element={<ReportesPage />} />
+                    <Route path="/asistencias/reporte" element={<ReportesPage />} />
+
+                    <Route path="/asistencias/registrar" element={<RegistrarAsistenciaPage />} />
+
+                    <Route path="/asistencias/escanear" element={<EscanearQRPage />} />
 
                     {/* Ruta /dashboard redirige según el rol */}
                     <Route path="/dashboard" element={<NavigateToDashboard />} />

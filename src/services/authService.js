@@ -8,13 +8,14 @@ export const authService = {
                 clave: password,
             });
 
-            const { token } = response.data;
+            const { token, personaId } = response.data;
 
             // Extraer los datos del usuario de la respuesta
             const userData = {
                 idUsuario: response.data.idUsuario,
                 user: response.data.user,
                 estado: response.data.estado,
+                ersonaId: personaId,
             };
 
             if (token) {

@@ -115,7 +115,8 @@ const GruposPequenosPage = () => {
 
     const loadParticipantesDisponibles = async (grupoPequenoId) => {
         try {
-            // 1. Obtener el ID del evento general
+            console.log("Paso 1: Abriendo modal para grupoPequenoId:", grupoPequenoId);
+
             const grupoCompleto = await grupoPequenoService.findById(grupoPequenoId);
             const eventoGeneralId = grupoCompleto.eventoGeneralId;
 
@@ -124,29 +125,34 @@ const GruposPequenosPage = () => {
                 return;
             }
 
-            // 2. Obtener lista completa del backend (filtrada por Evento/Periodo, con flag yaInscrito)
+            console.log("Paso 2: Encontrado eventoGeneralId:", eventoGeneralId, "(Postman usó ID 1)");
+
             const data = await grupoPequenoService.getParticipantesDisponibles(eventoGeneralId);
 
-            console.log("DEBUG: Participantes iniciales del backend (data):", data);
+            console.log("Paso 3: Datos recibidos del API (data):", data); // Verifica si esto está vacío
 
-            // 3. Obtener participantes ya inscritos en ESTE grupo
             const participantesActualesRaw = await grupoParticipanteService.findByGrupoPequeno(grupoPequenoId);
             const idsParticipantesActivosEnEsteGrupo = participantesActualesRaw
                 .filter(p => p.estado === 'ACTIVO')
                 .map(p => p.personaId);
 
-            console.log("DEBUG: IDs Activos en este grupo:", idsParticipantesActivosEnEsteGrupo);
+            console.log("Paso 4: IDs en este grupo (idsParticipantesActivosEnEsteGrupo):", idsParticipantesActivosEnEsteGrupo);
 
-            // 4. Filtrar los disponibles:
             const disponiblesParaAgregar = data.filter(persona => {
                 const yaActivoEnEsteGrupo = idsParticipantesActivosEnEsteGrupo.includes(persona.personaId);
 
-                // Excluimos a quienes están en OTRO grupo activo (!persona.yaInscrito)
-                // Y a quienes ya están activos en ESTE grupo.
+                // Log de por qué un participante es filtrado
+                if (persona.yaInscrito) {
+                    console.log(`Filtrado ${persona.nombreCompleto}: yaInscrito es true`);
+                }
+                if (yaActivoEnEsteGrupo) {
+                    console.log(`Filtrado ${persona.nombreCompleto}: yaActivoEnEsteGrupo es true`);
+                }
+
                 return !persona.yaInscrito && !yaActivoEnEsteGrupo;
             });
 
-            console.log("DEBUG: Participantes disponibles finales (filtrados):", disponiblesParaAgregar);
+            console.log("Paso 5: Participantes finales para mostrar (disponiblesParaAgregar):", disponiblesParaAgregar);
             setParticipantesDisponibles(disponiblesParaAgregar);
 
         } catch (error) {
