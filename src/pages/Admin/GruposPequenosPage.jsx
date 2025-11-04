@@ -21,7 +21,6 @@ import { grupoParticipanteService } from '../../services/grupoParticipanteServic
 import { grupoPequenoService } from '../../services/grupoPequenoService';
 import { grupoGeneralService } from '../../services/grupoGeneralService';
 
-const personaService = crudService('personas');
 
 const GruposPequenosPage = () => {
     const [grupos, setGrupos] = useState([]);
@@ -82,7 +81,6 @@ const GruposPequenosPage = () => {
 
     const loadGruposGenerales = async () => {
         try {
-            // CORRECCIÓN: Usar el servicio dedicado grupoGeneralService en lugar de crudService
             const data = await grupoGeneralService.findAll();
             setGruposGenerales(data);
         } catch (error) {
@@ -91,57 +89,65 @@ const GruposPequenosPage = () => {
         }
     };
 
+    // ✅ --- SECCIÓN CORREGIDA ---
     const loadLideresDisponibles = async (excludeGrupoPequenoId = null) => {
         try {
             setLoadingLideres(true);
+
+            // 1. Usar el endpoint correcto que devuelve PersonaDTO
             const data = await usuarioService.getLideresDisponibles(excludeGrupoPequenoId);
+
+            // 2. Ya no se necesita el mapeo manual (data.map),
+            //    porque 'data' ahora contiene idPersona, nombreCompleto, etc.
             setLideresDisponibles(data);
+
             if (data.length === 0) {
                 setError('No se encontraron líderes disponibles. Asegúrese de que existan usuarios con el rol LIDER que no estén asignados a otro grupo.');
             }
         } catch (error) {
             console.error('Error cargando líderes disponibles:', error);
-            setError('Error al cargar la lista de líderes: ' + error.message);
+            setError('Error al cargar la lista de líderes: ' + (error.message || 'Error de conexión'));
         } finally {
             setLoadingLideres(false);
         }
     };
+    // ✅ --- FIN DE SECCIÓN CORREGIDA ---
 
     const loadParticipantesDisponibles = async (grupoPequenoId) => {
         try {
-            // === INICIO DE LA CORRECCIÓN CRÍTICA ===
-            // 1. Obtener el ID del evento general (grupoGeneralId)
+            // 1. Obtener el ID del evento general
             const grupoCompleto = await grupoPequenoService.findById(grupoPequenoId);
-            const grupoGeneralId = grupoCompleto.grupoGeneralId;
+            const eventoGeneralId = grupoCompleto.eventoGeneralId;
 
-            if (!grupoGeneralId) {
+            if (!eventoGeneralId) {
                 setError('No se pudo determinar el evento general del grupo.');
                 return;
             }
 
-            // 2. Usar el método del servicio que llama al backend para obtener
-            // los participantes elegibles (rol INTEGRANTE y disponibles en el evento general).
-            const data = await grupoPequenoService.getParticipantesDisponibles(grupoGeneralId);
+            // 2. Obtener lista completa del backend (filtrada por Evento/Periodo, con flag yaInscrito)
+            const data = await grupoPequenoService.getParticipantesDisponibles(eventoGeneralId);
 
-            // 3. Obtener participantes ya inscritos en el grupo actual (incluye inactivos)
+            console.log("DEBUG: Participantes iniciales del backend (data):", data);
+
+            // 3. Obtener participantes ya inscritos en ESTE grupo
             const participantesActualesRaw = await grupoParticipanteService.findByGrupoPequeno(grupoPequenoId);
-            const idsParticipantesActuales = participantesActualesRaw
-                .filter(p => p.estado === 'ACTIVO') // Sólo los activos para el filtro
+            const idsParticipantesActivosEnEsteGrupo = participantesActualesRaw
+                .filter(p => p.estado === 'ACTIVO')
                 .map(p => p.personaId);
 
-            // 4. Filtrar los disponibles por aquellos que NO están activos en el grupo actual.
-            const disponiblesFinal = data
-                .filter(persona => !idsParticipantesActuales.includes(persona.idPersona))
-                .map(persona => ({
-                    personaId: persona.idPersona,
-                    nombreCompleto: persona.nombreCompleto,
-                    codigoEstudiante: persona.codigoEstudiante,
-                    correo: persona.correo,
-                    yaInscrito: false
-                }));
+            console.log("DEBUG: IDs Activos en este grupo:", idsParticipantesActivosEnEsteGrupo);
 
-            setParticipantesDisponibles(disponiblesFinal);
-            // === FIN DE LA CORRECCIÓN CRÍTICA ===
+            // 4. Filtrar los disponibles:
+            const disponiblesParaAgregar = data.filter(persona => {
+                const yaActivoEnEsteGrupo = idsParticipantesActivosEnEsteGrupo.includes(persona.personaId);
+
+                // Excluimos a quienes están en OTRO grupo activo (!persona.yaInscrito)
+                // Y a quienes ya están activos en ESTE grupo.
+                return !persona.yaInscrito && !yaActivoEnEsteGrupo;
+            });
+
+            console.log("DEBUG: Participantes disponibles finales (filtrados):", disponiblesParaAgregar);
+            setParticipantesDisponibles(disponiblesParaAgregar);
 
         } catch (error) {
             console.error('Error cargando participantes disponibles:', error);
@@ -191,8 +197,9 @@ const GruposPequenosPage = () => {
     const openGestionParticipantesModal = async (grupo) => {
         setCurrentGrupo(grupo);
         try {
-            await loadParticipantesDisponibles(grupo.idGrupoPequeno);
+            // Recargar listas para el modal
             await loadParticipantesActuales(grupo.idGrupoPequeno);
+            await loadParticipantesDisponibles(grupo.idGrupoPequeno);
             setShowParticipantesModal(true);
             setError('');
         } catch (error) {
@@ -203,11 +210,18 @@ const GruposPequenosPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const payload = {
+                ...formData,
+                grupoGeneralId: parseInt(formData.grupoGeneralId, 10),
+                liderId: parseInt(formData.liderId, 10), // Esto ahora será el idPersona (correcto)
+                capacidadMaxima: parseInt(formData.capacidadMaxima, 10),
+            };
+
             if (currentGrupo) {
-                await grupoPequenoService.update(currentGrupo.idGrupoPequeno, formData);
+                await grupoPequenoService.update(currentGrupo.idGrupoPequeno, payload);
                 setSuccess('Grupo actualizado exitosamente');
             } else {
-                await grupoPequenoService.save(formData);
+                await grupoPequenoService.save(payload);
                 setSuccess('Grupo creado exitosamente');
             }
             setShowModal(false);
@@ -243,14 +257,12 @@ const GruposPequenosPage = () => {
             await grupoParticipanteService.save(participanteData);
 
             setSuccess('Participante agregado exitosamente');
-            await loadParticipantesDisponibles(currentGrupo.idGrupoPequeno);
             await loadParticipantesActuales(currentGrupo.idGrupoPequeno);
+            await loadParticipantesDisponibles(currentGrupo.idGrupoPequeno);
             loadGrupos();
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
             const backendMessage = err.response?.data?.message || err.message;
-
-            // Si no se devuelve un CustomResponse, usamos el mensaje genérico de Axios
             const displayMessage = (backendMessage && backendMessage !== 'Request failed with status code 400')
                 ? backendMessage
                 : 'Verifique si el grupo está lleno o el participante ya está inscrito.';
@@ -264,8 +276,8 @@ const GruposPequenosPage = () => {
         try {
             await grupoParticipanteService.removerParticipante(participanteId);
             setSuccess('Participante removido exitosamente');
-            await loadParticipantesDisponibles(currentGrupo.idGrupoPequeno);
             await loadParticipantesActuales(currentGrupo.idGrupoPequeno);
+            await loadParticipantesDisponibles(currentGrupo.idGrupoPequeno);
             loadGrupos();
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
@@ -488,6 +500,7 @@ const GruposPequenosPage = () => {
                                             className="form-select"
                                         >
                                             <option value="">Seleccionar líder</option>
+                                            {/* ✅ CORREGIDO: Itera sobre los líderes (que ahora son PersonaDTO) */}
                                             {lideresDisponibles.map(lider => (
                                                 <option key={lider.idPersona} value={lider.idPersona}>
                                                     {lider.nombreCompleto}
@@ -596,34 +609,34 @@ const GruposPequenosPage = () => {
                                 </div>
 
                                 <div className="participantes-section">
-                                    <h4>Participantes Disponibles</h4>
+                                    <h4>Participantes Disponibles ({participantesDisponibles.length})</h4>
                                     <div className="participantes-list">
-                                        {participantesDisponibles
-                                            .filter(p => !p.yaInscrito)
-                                            .map(participante => (
-                                                <div key={participante.personaId} className="participante-item">
-                                                    <div className="participante-info">
-                                                        <strong>{participante.nombreCompleto}</strong>
-                                                        <span>{participante.codigoEstudiante}</span>
-                                                        <small>{participante.correo}</small>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => agregarParticipante(participante.personaId)}
-                                                        className="btn btn-success btn-sm"
-                                                        disabled={participantesActuales.length >= currentGrupo.capacidadMaxima}
-                                                        title={
-                                                            participantesActuales.length >= currentGrupo.capacidadMaxima
-                                                                ? 'Capacidad máxima alcanzada'
-                                                                : 'Agregar al grupo'
-                                                        }
-                                                    >
-                                                        <FaUserPlus />
-                                                    </button>
+                                        {/* Iteramos sobre los participantes disponibles (que ya no están en otro grupo activo Y no están en este) */}
+                                        {participantesDisponibles.map(participante => (
+                                            <div key={participante.personaId} className="participante-item">
+                                                <div className="participante-info">
+                                                    <strong>{participante.nombreCompleto}</strong>
+                                                    {/* Se añade el documento para mejor identificación */}
+                                                    <span>{participante.codigoEstudiante} - {participante.documento}</span>
+                                                    <small>{participante.correo}</small>
                                                 </div>
-                                            ))}
-                                        {participantesDisponibles.filter(p => !p.yaInscrito).length === 0 && (
+                                                <button
+                                                    onClick={() => agregarParticipante(participante.personaId)}
+                                                    className="btn btn-success btn-sm"
+                                                    disabled={participantesActuales.length >= currentGrupo.capacidadMaxima}
+                                                    title={
+                                                        participantesActuales.length >= currentGrupo.capacidadMaxima
+                                                            ? 'Capacidad máxima alcanzada'
+                                                            : 'Agregar al grupo'
+                                                    }
+                                                >
+                                                    <FaUserPlus />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {participantesDisponibles.length === 0 && (
                                             <div className="empty-state">
-                                                No hay participantes disponibles
+                                                No hay participantes disponibles que cumplan el perfil (Integrante/Estudiante) y no estén ya inscritos en un grupo activo de este evento.
                                             </div>
                                         )}
                                     </div>

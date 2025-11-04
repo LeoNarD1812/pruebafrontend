@@ -3,9 +3,10 @@ import { FaCalendarDay, FaPlus, FaEdit, FaTrashAlt, FaSearch, FaTimes, FaSync, F
 import { crudService } from '../../services/crudService';
 import { formatDate } from '../../utils/helpers';
 import api from '../../api/axiosConfig';
+import { eventoEspecificoService } from '../../services/eventoEspecificoService'; // Asegúrate de usar el servicio correcto para crearRecurrencia
 
 // Inicializa los servicios
-const eventoEspecificoService = crudService('eventos-especificos');
+// const eventoEspecificoService = crudService('eventos-especificos'); // Usaremos el que tiene los métodos de recurrencia
 const eventoGeneralService = crudService('eventos-generales');
 
 // Función formatTime si no existe en helpers
@@ -30,7 +31,7 @@ const SesionesPage = () => {
     const [viewMode, setViewMode] = useState('calendar'); // 'calendar' o 'list'
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
-    // Estado del formulario
+    // Estado del formulario (Añadiendo lugar y descripcion, y valor por defecto de tolerancia)
     const [isRecurrence, setIsRecurrence] = useState(true);
     const [formData, setFormData] = useState({
         idEventoGeneral: '',
@@ -38,10 +39,12 @@ const SesionesPage = () => {
         fecha: '',
         horaInicio: '',
         horaFin: '',
-        toleranciaMinutos: '',
+        toleranciaMinutos: 15, // Valor por defecto
         fechaInicioRecurrencia: '',
         fechaFinRecurrencia: '',
         diasSemana: [1, 3, 5],
+        lugar: '', // Nuevo
+        descripcion: '', // Nuevo
     });
 
     const daysOfWeek = [
@@ -51,7 +54,7 @@ const SesionesPage = () => {
         { name: 'Jue', value: 4 },
         { name: 'Vie', value: 5 },
         { name: 'Sáb', value: 6 },
-        { name: 'Dom', value: 0 }, // Cambiado a 0 para que coincida con getDay()
+        { name: 'Dom', value: 7 }, // Corregido: 7 para Domingo (1=Mon a 7=Sun en Java DayOfWeek)
     ];
 
     useEffect(() => {
@@ -83,7 +86,10 @@ const SesionesPage = () => {
                 setFormData(prev => ({
                     ...prev,
                     fechaInicioRecurrencia: eventoGeneral.fechaInicio || '',
-                    fechaFinRecurrencia: eventoGeneral.fechaFin || ''
+                    fechaFinRecurrencia: eventoGeneral.fechaFin || '',
+                    // El lugar y descripción se hereda del evento general si no se especifica, pero lo precargamos si existe.
+                    lugar: prev.lugar || eventoGeneral.lugar || '',
+                    descripcion: prev.descripcion || eventoGeneral.descripcion || ''
                 }));
             }
         }
@@ -92,7 +98,7 @@ const SesionesPage = () => {
     const loadSesiones = async () => {
         try {
             setLoading(true);
-            const data = await eventoEspecificoService.findAll();
+            const data = await crudService('eventos-especificos').findAll(); // Uso crudService para findAll
             console.log('Sesiones cargadas:', data);
             setSesiones(data);
             setFilteredSesiones(data);
@@ -120,6 +126,7 @@ const SesionesPage = () => {
             let payload;
 
             if (currentSesion) {
+                // Lógica de Edición
                 payload = {
                     nombreSesion: sesionData.nombreSesion,
                     fecha: sesionData.fecha,
@@ -128,23 +135,37 @@ const SesionesPage = () => {
                     lugar: sesionData.lugar || null,
                     descripcion: sesionData.descripcion || null,
                     toleranciaMinutos: sesionData.toleranciaMinutos ? parseInt(sesionData.toleranciaMinutos, 10) : 15,
-                    estado: sesionData.estado || 'PROGRAMADO'
+                    estado: sesionData.estado || 'PROGRAMADO',
                 };
+                await crudService('eventos-especificos').update(currentSesion.idEventoEspecifico, payload);
             } else {
-                payload = {
-                    ...sesionData,
-                    idEventoGeneral: parseInt(sesionData.idEventoGeneral, 10),
-                    toleranciaMinutos: sesionData.toleranciaMinutos ? parseInt(sesionData.toleranciaMinutos, 10) : 15
-                };
-            }
-
-            if (currentSesion) {
-                await eventoEspecificoService.update(currentSesion.idEventoEspecifico, payload);
-            } else {
+                // Lógica de Creación (Única o Recurrente)
                 if (isRecurrence) {
-                    await api.post('eventos-especificos/recurrencia', payload);
+                    payload = {
+                        idEventoGeneral: parseInt(sesionData.idEventoGeneral, 10),
+                        nombreSesion: sesionData.nombreSesion,
+                        fechaInicioRecurrencia: sesionData.fechaInicioRecurrencia,
+                        fechaFinRecurrencia: sesionData.fechaFinRecurrencia,
+                        horaInicio: sesionData.horaInicio,
+                        horaFin: sesionData.horaFin,
+                        toleranciaMinutos: sesionData.toleranciaMinutos ? parseInt(sesionData.toleranciaMinutos, 10) : 15,
+                        diasSemana: sesionData.diasSemana.map(d => parseInt(d, 10)),
+                        lugar: sesionData.lugar || undefined, // undefined para que el backend herede si es nulo/vacío
+                        descripcion: sesionData.descripcion || undefined,
+                    };
+                    await eventoEspecificoService.crearRecurrencia(payload);
                 } else {
-                    await eventoEspecificoService.save(payload);
+                    payload = {
+                        eventoGeneralId: parseInt(sesionData.idEventoGeneral, 10),
+                        nombreSesion: sesionData.nombreSesion,
+                        fecha: sesionData.fecha,
+                        horaInicio: sesionData.horaInicio,
+                        horaFin: sesionData.horaFin,
+                        toleranciaMinutos: sesionData.toleranciaMinutos ? parseInt(sesionData.toleranciaMinutos, 10) : 15,
+                        lugar: sesionData.lugar || undefined,
+                        descripcion: sesionData.descripcion || undefined,
+                    };
+                    await eventoEspecificoService.crearEvento(payload);
                 }
             }
 
@@ -157,7 +178,9 @@ const SesionesPage = () => {
 
             if (error.response) {
                 errorMessage += `Error ${error.response.status}: `;
-                if (error.response.data) {
+                if (error.response.data && error.response.data.message) {
+                    errorMessage += error.response.data.message;
+                } else if (error.response.data) {
                     errorMessage += JSON.stringify(error.response.data);
                 } else {
                     errorMessage += error.response.statusText;
@@ -175,7 +198,7 @@ const SesionesPage = () => {
     const handleDelete = async (id) => {
         if (window.confirm('¿Está seguro de eliminar esta sesión? Esta acción es irreversible.')) {
             try {
-                await eventoEspecificoService.delete(id);
+                await crudService('eventos-especificos').delete(id);
                 await loadSesiones();
                 setError(null);
             } catch (error) {
@@ -194,10 +217,12 @@ const SesionesPage = () => {
             fecha: '',
             horaInicio: '',
             horaFin: '',
-            toleranciaMinutos: '',
+            toleranciaMinutos: 15,
             fechaInicioRecurrencia: '',
             fechaFinRecurrencia: '',
             diasSemana: [1, 3, 5],
+            lugar: '',
+            descripcion: '',
         });
         setIsModalOpen(true);
     };
@@ -211,7 +236,9 @@ const SesionesPage = () => {
             fecha: sesion.fecha ? new Date(sesion.fecha).toISOString().split('T')[0] : '',
             horaInicio: sesion.horaInicio || '',
             horaFin: sesion.horaFin || '',
-            toleranciaMinutos: sesion.toleranciaMinutos || '',
+            toleranciaMinutos: sesion.toleranciaMinutos || 15,
+            lugar: sesion.lugar || '',
+            descripcion: sesion.descripcion || '',
             fechaInicioRecurrencia: '',
             fechaFinRecurrencia: '',
             diasSemana: [],
@@ -250,6 +277,23 @@ const SesionesPage = () => {
 
     const handleFormSubmit = (e) => {
         e.preventDefault();
+
+        // Validaciones mínimas
+        if (!formData.idEventoGeneral || !formData.nombreSesion || !formData.horaInicio || !formData.horaFin) {
+            setError('Faltan campos obligatorios (*)');
+            return;
+        }
+
+        if (!currentSesion && !isRecurrence && !formData.fecha) {
+            setError('La fecha es obligatoria para una sesión única');
+            return;
+        }
+
+        if (!currentSesion && isRecurrence && formData.diasSemana.length === 0) {
+            setError('Debe seleccionar al menos un día de la semana para la recurrencia');
+            return;
+        }
+
         handleSave(formData);
     };
 
@@ -261,18 +305,19 @@ const SesionesPage = () => {
     };
 
     const getStatusBadge = (estado) => {
-        const status = estado?.toUpperCase() || 'ACTIVO';
+        const status = estado?.toUpperCase() || 'PROGRAMADO';
         const statusConfig = {
-            'ACTIVO': { class: 'status-active', label: 'Activo' },
+            'PROGRAMADO': { class: 'status-scheduled', label: 'Programado' },
+            'EN_CURSO': { class: 'status-in-progress', label: 'En Curso' },
             'FINALIZADO': { class: 'status-finished', label: 'Finalizado' },
             'CANCELADO': { class: 'status-cancelled', label: 'Cancelado' }
         };
 
-        const config = statusConfig[status] || statusConfig.ACTIVO;
+        const config = statusConfig[status] || statusConfig.PROGRAMADO;
         return <span className={`badge ${config.class}`}>{config.label}</span>;
     };
 
-    // Funciones para el calendario - CORREGIDAS
+    // Funciones para el calendario - CORREGIDO DÍAS
     const getDaysInMonth = (date) => {
         const year = date.getFullYear();
         const month = date.getMonth();
@@ -280,10 +325,10 @@ const SesionesPage = () => {
         const lastDay = new Date(year, month + 1, 0);
 
         const days = [];
-        const startingDay = firstDay.getDay();
+        const startingDay = firstDay.getDay(); // 0=Dom, 1=Lun
 
-        // Ajuste para que la semana empiece en lunes (0=Domingo, 1=Lunes...)
-        const adjustedStart = startingDay === 0 ? 6 : startingDay - 1;
+        // Ajuste para que la semana empiece en lunes (0=Dom, 1=Lun...)
+        const adjustedStart = startingDay === 0 ? 6 : startingDay - 1; // 0 para lunes, 6 para domingo
 
         // Días del mes anterior
         const prevMonthLastDay = new Date(year, month, 0).getDate();
@@ -301,8 +346,7 @@ const SesionesPage = () => {
             const dateString = currentDate.toISOString().split('T')[0];
             const daySessions = filteredSesiones.filter(sesion => {
                 if (!sesion.fecha) return false;
-                const sesionDate = new Date(sesion.fecha);
-                const sesionDateString = sesionDate.toISOString().split('T')[0];
+                const sesionDateString = sesion.fecha.split('T')[0];
                 return sesionDateString === dateString;
             });
 
@@ -447,7 +491,7 @@ const SesionesPage = () => {
                                 </td>
                                 <td>{getEventoGeneralNombre(sesion.eventoGeneralId)}</td>
                                 <td>{formatDate(sesion.fecha)}</td>
-                                <td>{sesion.horaInicio} - {sesion.horaFin}</td>
+                                <td>{formatTime(sesion.horaInicio)} - {formatTime(sesion.horaFin)}</td>
                                 <td>{sesion.lugar || 'No especificado'}</td>
                                 <td>{sesion.toleranciaMinutos || '15'} min</td>
                                 <td>{getStatusBadge(sesion.estado)}</td>
@@ -509,9 +553,11 @@ const SesionesPage = () => {
                             {eventosGenerales.map(evento => (
                                 <option key={evento.idEventoGeneral} value={evento.idEventoGeneral}>
                                     {evento.nombre} ({formatDate(evento.fechaInicio)} - {formatDate(evento.fechaFin)})
+                                    {evento.periodoNombre && ` - Período: ${evento.periodoNombre}`}
                                 </option>
                             ))}
                         </select>
+                        <small className="form-help">Seleccionar el evento principal.</small>
                     </div>
 
                     <div className="form-group">
@@ -633,6 +679,36 @@ const SesionesPage = () => {
                             />
                         </div>
                     </div>
+
+                    {/* Nuevos campos opcionales: Lugar y Descripción */}
+                    <div className="form-group">
+                        <label htmlFor="lugar">Lugar</label>
+                        <input
+                            type="text"
+                            id="lugar"
+                            name="lugar"
+                            value={formData.lugar || ''}
+                            onChange={handleFormChange}
+                            placeholder="Ej: Aula A101 (Se hereda del Evento General si se deja vacío en Recurrencia)"
+                            maxLength="200"
+                            className="form-input"
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="descripcion">Descripción</label>
+                        <textarea
+                            id="descripcion"
+                            name="descripcion"
+                            value={formData.descripcion || ''}
+                            onChange={handleFormChange}
+                            placeholder="Descripción opcional de la sesión (Se hereda del Evento General si se deja vacío en Recurrencia)..."
+                            rows="2"
+                            maxLength="500"
+                            className="form-textarea"
+                        />
+                    </div>
+                    {/* Fin Nuevos campos opcionales */}
 
                     <div className="form-group">
                         <label htmlFor="toleranciaMinutos">Tolerancia (minutos)</label>

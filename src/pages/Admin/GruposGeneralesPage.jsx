@@ -94,7 +94,11 @@ const GruposGeneralesPage = () => {
             if (error.response) {
                 errorMessage += `Error ${error.response.status}: `;
                 if (error.response.data) {
-                    errorMessage += JSON.stringify(errorResponse.data);
+                    if (error.response.data.message) {
+                        errorMessage += error.response.data.message;
+                    } else {
+                        errorMessage += JSON.stringify(error.response.data);
+                    }
                 } else {
                     errorMessage += error.response.statusText;
                 }
@@ -200,7 +204,8 @@ const GruposGeneralesPage = () => {
                             {eventosGenerales.map(evento => (
                                 <option key={evento.idEventoGeneral} value={evento.idEventoGeneral}>
                                     {evento.nombre}
-                                    {evento.cicloAcademico && ` - ${evento.cicloAcademico}`}
+                                    {/* Mostrar periodoNombre en lugar de cicloAcademico */}
+                                    {evento.periodoNombre && ` - ${evento.periodoNombre}`}
                                 </option>
                             ))}
                         </select>

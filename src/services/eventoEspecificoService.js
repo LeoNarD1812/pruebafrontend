@@ -1,4 +1,4 @@
-import api from './axiosConfig';
+import api from '../api/axiosConfig'; // <-- CORREGIDO: Subir un nivel (..) e ir a la carpeta 'api'
 
 export const eventoEspecificoService = {
     crearRecurrencia: async (recurrenceData) => {
