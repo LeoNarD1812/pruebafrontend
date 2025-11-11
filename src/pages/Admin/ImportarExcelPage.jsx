@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaDownload, FaUpload, FaFileExcel, FaCheckCircle, FaExclamationCircle, FaInfoCircle, FaFileExport, FaFilter, FaCalendarAlt } from 'react-icons/fa';
 import { importService } from '../../services/importService';
 import { periodosService } from '../../services/periodosService';
+import './admin-global.css';
 
 const ImportarExcelPage = () => {
     const [sedes, setSedes] = useState([]);

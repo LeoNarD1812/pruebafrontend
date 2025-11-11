@@ -80,7 +80,7 @@ const ListaAsistenciaModal = ({ sesion, liderId, onClose }) => {
         }
     };
 
-    const filteredList = listaLlamado.filter(p =>
+    const filteredList = (listaLlamado || []).filter(p =>
         p.nombreCompleto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.codigoEstudiante?.includes(searchTerm) ||
         p.documento?.includes(searchTerm)
@@ -169,34 +169,26 @@ const RegistrarAsistenciaPage = () => {
                 const data = await asistenciaService.getSesionesDeHoy();
 
                 // --- INICIO DE LA CORRECCIÓN ---
-                // Filtramos las sesiones para que el líder solo vea las que aún son válidas
+                const ahora = new Date();
 
-                const ahora = new Date(); // Hora actual del navegador
-
-                const sesionesValidas = data.filter(sesion => {
-                    if (!sesion.horaFin || !sesion.fecha) return false; // Descartar si faltan datos
+                const sesionesValidas = (data || []).filter(sesion => {
+                    if (!sesion.horaFin || !sesion.fecha) return false;
 
                     try {
-                        // Creamos la fecha/hora de la sesión
-                        const [horas, minutos] = sesion.horaFin.split(':');
-                        const fechaSesion = new Date(sesion.fecha);
-                        fechaSesion.setHours(horas, minutos, 0, 0);
+                        const fechaISO = sesion.fecha.split('T')[0];
+                        const horaFinISO = `${fechaISO}T${sesion.horaFin}`;
+                        const horaLimite = new Date(horaFinISO);
+                        horaLimite.setMinutes(horaLimite.getMinutes() + 10);
 
-                        // Aplicamos la misma ventana de 2 horas que el backend
-                        //
-                        const horaLimite = new Date(fechaSesion);
-                        horaLimite.setMinutes(horaLimite.getMinutes() + 10); // Ventana de 2 horas
-
-                        // La sesión solo es válida si la hora actual es ANTERIOR a la hora límite
                         return ahora < horaLimite;
                     } catch (e) {
-                        console.error("Error parseando horaFin", sesion.horaFin, e);
-                        return false; // Descartar si la hora tiene formato incorrecto
+                        console.error("Error parseando la fecha/hora de la sesión:", sesion, e);
+                        return false;
                     }
                 });
                 // --- FIN DE LA CORRECCIÓN ---
 
-                setSesionesHoy(sesionesValidas || []); // Usar la lista filtrada
+                setSesionesHoy(sesionesValidas);
 
             } catch (err) {
                 setError("Error al cargar las sesiones de hoy.");

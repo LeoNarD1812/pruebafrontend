@@ -3,6 +3,7 @@ import { FaClipboardList, FaSearch, FaFilter, FaSync, FaUsers, FaUniversity, FaG
 import { importService } from '../../services/importService';
 import { matriculasService } from '../../services/matriculasService';
 import { periodosService } from '../../services/periodosService';
+import './admin-global.css';
 
 const Matriculas = () => {
     const [matriculas, setMatriculas] = useState([]);
@@ -260,20 +261,7 @@ const Matriculas = () => {
                     <h2>Filtros y Búsqueda</h2>
                 </div>
 
-                {/* Filtros */}
                 <div className="filtros-section">
-                    <div className="filtros-header">
-                        <h3><FaFilter /> Filtros Avanzados</h3>
-                        <div className="filtros-actions">
-                            <button onClick={aplicarFiltros} className="btn btn-primary" disabled={loading}>
-                                <FaFilter /> Aplicar Filtros
-                            </button>
-                            <button onClick={limpiarFiltros} className="btn btn-secondary" disabled={loading}>
-                                Limpiar
-                            </button>
-                        </div>
-                    </div>
-
                     <div className="filtros-grid">
                         <div className="form-group">
                             <label><FaUniversity /> Sede</label>
@@ -362,9 +350,16 @@ const Matriculas = () => {
                             </select>
                         </div>
                     </div>
+                    <div className="filtros-actions">
+                        <button onClick={aplicarFiltros} className="btn btn-primary" disabled={loading}>
+                            <FaFilter /> Aplicar Filtros
+                        </button>
+                        <button onClick={limpiarFiltros} className="btn btn-secondary" disabled={loading}>
+                            Limpiar
+                        </button>
+                    </div>
                 </div>
 
-                {/* Búsqueda */}
                 <div className="search-section">
                     <div className="search-box">
                         <FaSearch className="search-icon" />
@@ -376,12 +371,6 @@ const Matriculas = () => {
                             disabled={loading}
                             className="form-input"
                         />
-                    </div>
-                    <div className="search-info">
-                        <span className="results-count">
-                            Mostrando {currentItems.length} de {matriculasFiltradas.length} matrícula(s)
-                            (Página {currentPage} de {totalPages})
-                        </span>
                     </div>
                 </div>
             </div>

@@ -67,10 +67,21 @@ const Sidebar = () => {
 
             try {
                 const menuItems = await menuService.getMenuByUser(user.user);
-                setMenuData(menuItems);
+                setMenuData(menuItems || []);
 
-                const activeGroup = menuItems.find(group => group.items?.some(item => location.pathname === item.path));
-                setExpandedGroup(activeGroup?.id || menuItems.find(group => group.items)?.id || null);
+                // Find the active group based on current location
+                const activeGroup = (menuItems || []).find(group => {
+                    // Special handling for Dashboard if its path is directly active
+                    if (group.name === 'Dashboard' && location.pathname.startsWith('/dashboard/admin')) {
+                        return true;
+                    }
+                    // For other items/groups, check if their path or any sub-item's path is active
+                    if (group.path && location.pathname.startsWith(group.path)) {
+                        return true;
+                    }
+                    return group.items?.some(item => location.pathname.startsWith(item.path));
+                });
+                setExpandedGroup(activeGroup?.id || null); // Only expand if there's an active group
 
             } catch (error) {
                 console.error('Error cargando menú:', error);
@@ -107,11 +118,16 @@ const Sidebar = () => {
     return (
         <aside className="sidebar">
             <ul className="sidebar-menu">
-                {menuData.map((group) => (
+                {(menuData || []).map((group) => (
                     <li key={group.id} className="sidebar-item">
-                        {group.items ? (
+                        {group.name === 'Dashboard' ? ( // Special handling for Dashboard
+                            <NavLink to="/dashboard/admin" className={({ isActive }) => (isActive ? 'active' : '')}>
+                                {getIconComponent(group.icon)}
+                                <span>{group.name}</span>
+                            </NavLink>
+                        ) : group.items ? ( // Existing logic for groups
                             <>
-                                <div onClick={() => toggleGroup(group.id)} className="sidebar-group-header">
+                                <div onClick={() => toggleGroup(group.id)} className={`sidebar-group-header ${expandedGroup === group.id ? 'expanded' : ''}`}>
                                     <div>
                                         {getIconComponent(group.icon)}
                                         <span>{group.name}</span>
@@ -131,7 +147,7 @@ const Sidebar = () => {
                                     </ul>
                                 )}
                             </>
-                        ) : (
+                        ) : ( // Existing logic for direct links (non-Dashboard)
                             <NavLink to={group.path} className={({ isActive }) => (isActive ? 'active' : '')}>
                                 {getIconComponent(group.icon)}
                                 <span>{group.name}</span>
