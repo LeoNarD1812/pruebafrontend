@@ -11,7 +11,7 @@ import SuperAdminDashboardPage from '../pages/SuperAdmin/SuperAdminDashboardPage
 import LiderDashboardPage from '../pages/Lider/LiderDashboardPage';
 import IntegranteDashboardPage from '../pages/Integrante/IntegranteDashboardPage';
 
-// Importar las nuevas páginas de Eventos (AHORA DESDE /Admin)
+// Importar las páginas de Admin
 import EventosGeneralesPage from '../pages/Admin/EventosGeneralesPage';
 import SesionesPage from '../pages/Admin/SesionesPage';
 import GruposGeneralesPage from '../pages/Admin/GruposGeneralesPage';
@@ -21,11 +21,21 @@ import Sedes from '../pages/Admin/Sedes.jsx';
 import Facultades from '../pages/Admin/Facultades.jsx';
 import Programas from '../pages/Admin/Programas.jsx';
 import ReportesPage from '../pages/Admin/ReportesPage';
+import PeriodosPage from '../pages/Admin/Periodos.jsx';
+
+// Importar páginas de Lider/Integrante
 import RegistrarAsistenciaPage from '../pages/Lider/RegistrarAsistenciaPage';
 import EscanearQRPage from '../pages/Integrante/EscanearQRPage';
 import MisGruposPage from '../pages/Lider/MisGruposPage';
 import VerAsistenciasPage from '../pages/Lider/VerAsistenciasPage';
 import MisAsistenciasPage from '../pages/lider/MisAsistenciasPage';
+
+// Importar la nueva página de edición de perfil
+import ProfileEditPage from '../pages/User/ProfileEditPage';
+
+// Importar la nueva página de gestión de usuarios
+import UserManagementPage from '../pages/Admin/UserManagementPage';
+import ParticipantManagementPage from '../pages/Admin/ParticipantManagementPage'; // Importar el nuevo componente
 
 const PrivateRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -44,9 +54,7 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    // Verificar autenticación (ya incluye validación de token válido)
     if (!isAuthenticated()) {
-        // Limpiar cualquier dato residual
         authService.logout();
         return <Navigate to="/login" replace />;
     }
@@ -71,7 +79,6 @@ const PublicRoute = ({ children }) => {
         );
     }
 
-    // Si está autenticado, redirigir usando NavigateToDashboard
     if (isAuthenticated()) {
         return <NavigateToDashboard />;
     }
@@ -80,7 +87,6 @@ const PublicRoute = ({ children }) => {
 };
 
 const NavigateToDashboard = () => {
-    // Obtener el rol del token JWT directamente
     const token = authService.getToken();
 
     if (!token) {
@@ -89,7 +95,6 @@ const NavigateToDashboard = () => {
 
     const role = getRoleFromToken(token);
 
-    // Redirigir según el rol del usuario
     switch (role) {
         case 'ADMIN':
             return <Navigate to="/dashboard/admin" replace />;
@@ -100,7 +105,6 @@ const NavigateToDashboard = () => {
         case 'SUPERADMIN':
             return <Navigate to="/superadmin" replace />;
         default:
-            // Por defecto redirigir a dashboard de integrante
             return <Navigate to="/dashboard/integrante" replace />;
     }
 };
@@ -110,41 +114,14 @@ const AppRouter = () => {
         <BrowserRouter>
             <Routes>
                 {/* Rutas públicas */}
-                <Route
-                    path="/login"
-                    element={
-                        <PublicRoute>
-                            <LoginPage />
-                        </PublicRoute>
-                    }
-                />
-                <Route
-                    path="/register"
-                    element={
-                        <PublicRoute>
-                            <RegisterPage />
-                        </PublicRoute>
-                    }
-                />
+                <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
 
                 {/* Ruta raíz protegida que redirige al dashboard */}
-                <Route
-                    path="/"
-                    element={
-                        <PrivateRoute>
-                            <NavigateToDashboard />
-                        </PrivateRoute>
-                    }
-                />
+                <Route path="/" element={<PrivateRoute><NavigateToDashboard /></PrivateRoute>} />
 
                 {/* Rutas protegidas con layout */}
-                <Route
-                    element={
-                        <PrivateRoute>
-                            <MainLayout />
-                        </PrivateRoute>
-                    }
-                >
+                <Route element={<PrivateRoute><MainLayout /></PrivateRoute>}>
                     {/* Dashboards por rol */}
                     <Route path="/dashboard/admin" element={<AdminDashboardPage />} />
                     <Route path="/dashboard/lider" element={<LiderDashboardPage />} />
@@ -163,14 +140,21 @@ const AppRouter = () => {
                     <Route path="/grupos-pequenos" element={<GruposPequenosPage />} />
                     <Route path="/reportes" element={<ReportesPage />} />
                     <Route path="/asistencias/reporte" element={<ReportesPage />} />
+                    <Route path="/periodos" element={<PeriodosPage />} />
 
+                    {/* NUEVA RUTA: Gestión de Usuarios */}
+                    <Route path="/users" element={<UserManagementPage />} />
+                    <Route path="/participantes" element={<ParticipantManagementPage />} /> {/* NUEVA RUTA */}
+
+                    {/* Rutas de Lider/Integrante */}
                     <Route path="/grupos-pequenos/lider" element={<MisGruposPage />} />
                     <Route path="/asistencias" element={<VerAsistenciasPage />} />
                     <Route path="/asistencias/persona" element={<MisAsistenciasPage />} />
-
                     <Route path="/asistencias/registrar" element={<RegistrarAsistenciaPage />} />
-
                     <Route path="/asistencias/escanear" element={<EscanearQRPage />} />
+
+                    {/* NUEVA RUTA: Editar Perfil */}
+                    <Route path="/personas/my-profile" element={<ProfileEditPage />} />
 
                     {/* Ruta /dashboard redirige según el rol */}
                     <Route path="/dashboard" element={<NavigateToDashboard />} />

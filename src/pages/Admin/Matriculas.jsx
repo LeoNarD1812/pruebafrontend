@@ -37,7 +37,7 @@ const Matriculas = () => {
                 periodosService.getAll()
             ]);
             setSedes(sedesData || []);
-            setPeriodos(periodosData.data || []);
+            setPeriodos(periodosData || []); // MODIFICADO: periodosData ya es el array
             await cargarMatriculas();
         } catch (error) {
             console.error('Error cargando datos iniciales:', error);

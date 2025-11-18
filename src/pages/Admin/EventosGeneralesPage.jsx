@@ -1,24 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { FaCalendarAlt, FaPlus, FaEdit, FaTrashAlt, FaSearch, FaSpinner, FaMapMarkerAlt, FaCalendar, FaGraduationCap, FaClock, FaSync, FaTimes, FaInfoCircle, FaUsers } from 'react-icons/fa';
+import {
+    FaCalendarAlt,
+    FaPlus,
+    FaEdit,
+    FaTrashAlt,
+    FaSearch,
+    FaSpinner,
+    FaMapMarkerAlt,
+    FaCalendar,
+    FaGraduationCap,
+    FaClock,
+    FaSync,
+    FaTimes,
+    FaInfoCircle,
+    FaUsers,
+    FaExclamationTriangle,
+    FaSave
+} from 'react-icons/fa';
 import { eventoGeneralService } from '../../services/eventoGeneralService';
 import { crudService } from '../../services/crudService';
 import { formatDate } from '../../utils/helpers';
-import { periodosService } from '../../services/periodosService'; // Importar periodosService
+import { periodosService } from '../../services/periodosService';
 
 const programaService = crudService('programas');
 
 const EventosGeneralesPage = () => {
     const [eventos, setEventos] = useState([]);
     const [programas, setProgramas] = useState([]);
-    const [periodos, setPeriodos] = useState([]); // Nuevo estado para períodos
+    const [periodos, setPeriodos] = useState([]);
     const [filteredEventos, setFilteredEventos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentEvento, setCurrentEvento] = useState(null);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [filtroPrograma, setFiltroPrograma] = useState('');
-    const [filtroPeriodo, setFiltroPeriodo] = useState(''); // Nuevo estado para el filtro de período
+    const [filtroPeriodo, setFiltroPeriodo] = useState('');
 
     useEffect(() => {
         loadInitialData();
@@ -40,26 +58,25 @@ const EventosGeneralesPage = () => {
                 evento.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 evento.lugar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 evento.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                // Reemplazar cicloAcademico con periodoNombre en la búsqueda
                 evento.periodoNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 evento.programaNombre?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
         setFilteredEventos(eventosFiltrados);
-    }, [searchTerm, filtroPrograma, filtroPeriodo, eventos]); // Incluir filtroPeriodo
+    }, [searchTerm, filtroPrograma, filtroPeriodo, eventos]);
 
     const loadInitialData = async () => {
         try {
             setLoading(true);
-            const [eventosData, programasData, periodosData] = await Promise.all([ // Cargar períodos
+            const [eventosData, programasData, periodosData] = await Promise.all([
                 eventoGeneralService.findAll(),
                 programaService.findAll(),
                 periodosService.getAll(),
             ]);
             setEventos(eventosData || []);
             setProgramas(programasData || []);
-            setPeriodos(periodosData.data || []); // Asumiendo que periodosService.getAll() retorna { data: [...] }
-            setError(null);
+            setPeriodos(periodosData || []); // CORREGIDO: Acceso directo a periodosData
+            setError('');
         } catch (err) {
             console.error('Error cargando datos iniciales:', err);
             setError('Error al cargar datos: ' + (err.message || 'Verifique la conexión'));
@@ -70,24 +87,25 @@ const EventosGeneralesPage = () => {
 
     const handleSave = async (formData) => {
         try {
-            // Convertir IDs a números
             formData.programaId = parseInt(formData.programaId, 10);
-            formData.periodoId = parseInt(formData.periodoId, 10); // Nuevo
+            formData.periodoId = parseInt(formData.periodoId, 10);
 
             if (!formData.idEventoGeneral) {
                 formData.estado = 'ACTIVO';
             }
-            // Eliminar cicloAcademico si existe, ya que fue reemplazado por periodoId
             delete formData.cicloAcademico;
 
             if (formData.idEventoGeneral) {
                 await eventoGeneralService.update(formData.idEventoGeneral, formData);
+                setSuccess('Evento actualizado exitosamente');
             } else {
                 await eventoGeneralService.save(formData);
+                setSuccess('Evento creado exitosamente');
             }
             setIsModalOpen(false);
-            setError(null);
+            setError('');
             loadInitialData();
+            setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
             console.error('Error completo al guardar:', err);
             setError('Error al guardar el evento: ' +
@@ -99,7 +117,9 @@ const EventosGeneralesPage = () => {
         if (window.confirm('¿Estás seguro de que deseas eliminar este evento?')) {
             try {
                 await eventoGeneralService.delete(id);
+                setSuccess('Evento eliminado exitosamente');
                 loadInitialData();
+                setTimeout(() => setSuccess(''), 3000);
             } catch (err) {
                 setError('Error al eliminar el evento: ' + (err.message || ''));
             }
@@ -113,193 +133,189 @@ const EventosGeneralesPage = () => {
             lugar: '',
             fechaInicio: '',
             fechaFin: '',
-            periodoId: '', // Reemplaza cicloAcademico
+            periodoId: '',
             programaId: '',
         });
         setIsModalOpen(true);
+        setError('');
     };
 
     const openEditModal = (evento) => {
         setCurrentEvento({
             ...evento,
             programaId: evento.programaId ? String(evento.programaId) : '',
-            periodoId: evento.periodoId ? String(evento.periodoId) : '', // Nuevo
+            periodoId: evento.periodoId ? String(evento.periodoId) : '',
         });
         setIsModalOpen(true);
+        setError('');
     };
 
     const closeModal = () => {
         setIsModalOpen(false);
         setCurrentEvento(null);
+        setError('');
     };
 
-    const renderCards = () => {
-        if (filteredEventos.length === 0) {
-            return (
-                <div className="empty-state">
-                    <FaCalendarAlt className="empty-icon" />
-                    <h3>No hay eventos generales</h3>
-                    <p>
-                        {searchTerm || filtroPrograma || filtroPeriodo
-                            ? 'No se encontraron eventos que coincidan con tu búsqueda o filtros.'
-                            : 'Comienza creando tu primer evento general.'
-                        }
-                    </p>
-                    {!(searchTerm || filtroPrograma || filtroPeriodo) && (
-                        <button onClick={openCreateModal} className="btn btn-primary">
-                            <FaPlus /> Crear Primer Evento
-                        </button>
-                    )}
-                </div>
-            );
-        }
+    // --- Componente de Card para cada Evento General ---
+    const EventoGeneralCard = ({ evento, onEdit, onDelete }) => {
+        const [showFullDescription, setShowFullDescription] = useState(false);
+
+        const toggleDescription = () => {
+            setShowFullDescription(!showFullDescription);
+        };
+
+        const description = evento.descripcion || 'Sin descripción disponible';
+        const shouldTruncate = description.length > 120;
+        const displayDescription = showFullDescription ? description : description.substring(0, 120) + (shouldTruncate ? '...' : '');
+
+        const estadoClass = evento.estado?.toLowerCase() || 'activo';
 
         return (
-            <div className="cards-grid">
-                {filteredEventos.map((evento) => (
-                    <div key={evento.idEventoGeneral} className="card">
-                        <div className="card-header">
-                            <div className="card-title">
-                                <FaCalendarAlt className="card-icon" />
-                                <h3>{evento.nombre}</h3>
-                            </div>
-                            <div className="card-actions">
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={() => openEditModal(evento)}
-                                    title="Editar evento"
-                                >
-                                    <FaEdit />
-                                </button>
-                                <button
-                                    className="btn btn-danger"
-                                    onClick={() => handleDelete(evento.idEventoGeneral)}
-                                    title="Eliminar evento"
-                                >
-                                    <FaTrashAlt />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="card-content">
-                            {evento.descripcion && (
-                                <div className="card-description">
-                                    <FaInfoCircle className="description-icon" />
-                                    <p>{evento.descripcion}</p>
-                                </div>
-                            )}
-
-                            <div className="card-details">
-                                <div className="detail-item">
-                                    <FaMapMarkerAlt className="detail-icon" />
-                                    <div className="detail-info">
-                                        <span className="detail-label">Lugar:</span>
-                                        <span className="detail-value">{evento.lugar || 'No especificado'}</span>
-                                    </div>
-                                </div>
-
-                                <div className="detail-item">
-                                    <FaCalendar className="detail-icon" />
-                                    <div className="detail-info">
-                                        <span className="detail-label">Fechas:</span>
-                                        <span className="detail-value">
-                                            {formatDate(evento.fechaInicio)} - {formatDate(evento.fechaFin)}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Reemplazar cicloAcademico por Periodo */}
-                                <div className="detail-item">
-                                    <FaClock className="detail-icon" />
-                                    <div className="detail-info">
-                                        <span className="detail-label">Período:</span>
-                                        <span className="detail-value">{evento.periodoNombre || 'No asignado'}</span>
-                                    </div>
-                                </div>
-
-                                <div className="detail-item">
-                                    <FaGraduationCap className="detail-icon" />
-                                    <div className="detail-info">
-                                        <span className="detail-label">Programa:</span>
-                                        <span className="detail-value">{evento.programaNombre || 'No asignado'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="card-stats">
-                            <div className="stat-item">
-                                <div className="stat-icon date">
-                                    <FaCalendar />
-                                </div>
-                                <div className="stat-info">
-                                    <span className="stat-value">{formatDate(evento.createdAt)}</span>
-                                    <span className="stat-label">Creado</span>
-                                </div>
-                            </div>
-                            <div className="stat-item">
-                                <div className={`stat-icon status ${evento.estado?.toLowerCase() || 'activo'}`}>
-                                    <FaClock />
-                                </div>
-                                <div className="stat-info">
-                                    <span className="stat-value">{evento.estado || 'ACTIVO'}</span>
-                                    <span className="stat-label">Estado</span>
-                                </div>
-                            </div>
-                        </div>
-
+            <div className="card event-card">
+                <div className="card-header event-card-header">
+                    <div className="event-title-section">
+                        <FaCalendarAlt className="event-icon" />
+                        <h3 className="event-title">{evento.nombre}</h3>
                     </div>
-                ))}
+                    <div className="card-actions">
+                        <button
+                            className="btn btn-icon btn-secondary"
+                            onClick={() => onEdit(evento)}
+                            title="Editar evento"
+                        >
+                            <FaEdit />
+                        </button>
+                        <button
+                            className="btn btn-icon btn-danger"
+                            onClick={() => onDelete(evento.idEventoGeneral)}
+                            title="Eliminar evento"
+                        >
+                            <FaTrashAlt />
+                        </button>
+                    </div>
+                </div>
+
+                {evento.descripcion && (
+                    <div className="card-content event-description-section">
+                        <p>
+                            <FaInfoCircle className="description-icon" />
+                            {displayDescription}
+                            {shouldTruncate && (
+                                <button className="btn-link" onClick={toggleDescription}>
+                                    {showFullDescription ? ' ver menos' : ' ver más'}
+                                </button>
+                            )}
+                        </p>
+                    </div>
+                )}
+
+                <div className="card-body-info">
+                    {/* Fila 1: Lugar y Fechas */}
+                    <div className="info-row">
+                        <div className="info-item">
+                            <FaMapMarkerAlt className="info-icon" />
+                            <div className="info-text">
+                                <span className="info-label">Lugar</span>
+                                <strong className="info-value">{evento.lugar || 'No especificado'}</strong>
+                            </div>
+                        </div>
+                        <div className="info-item">
+                            <FaCalendar className="info-icon" />
+                            <div className="info-text">
+                                <span className="info-label">Fechas</span>
+                                <strong className="info-value">{formatDate(evento.fechaInicio)} - {formatDate(evento.fechaFin)}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Fila 2: Período y Programa */}
+                    <div className="info-row">
+                        <div className="info-item">
+                            <FaClock className="info-icon" />
+                            <div className="info-text">
+                                <span className="info-label">Período</span>
+                                <strong className="info-value">{evento.periodoNombre || 'N/A'}</strong>
+                            </div>
+                        </div>
+                        <div className="info-item">
+                            <FaGraduationCap className="info-icon" />
+                            <div className="info-text">
+                                <span className="info-label">Programa</span>
+                                <strong className="info-value">{evento.programaNombre || 'N/A'}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card-footer event-card-footer">
+                    <div className="stat-item">
+                        <FaCalendar className="stat-icon" />
+                        <div className="stat-info">
+                            <span className="stat-value">{formatDate(evento.createdAt)}</span>
+                            <span className="stat-label">Creado</span>
+                        </div>
+                    </div>
+                    <div className="stat-item">
+                        <FaInfoCircle className={`stat-icon status ${estadoClass}`} />
+                        <div className="stat-info">
+                            <span className="stat-value">{evento.estado || 'ACTIVO'}</span>
+                            <span className="stat-label">Estado</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     };
+    // --- Fin Componente de Card ---
 
     if (loading) {
         return (
             <div className="page-container">
-                <FaCalendarAlt className="spinner" /> Cargando eventos...
+                <div className="loading-container">
+                    <FaSpinner className="spinner" />
+                    <p>Cargando eventos generales...</p>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="page-container">
+            {/* Alertas */}
+            {error && (
+                <div className="alert alert-danger">
+                    <FaExclamationTriangle /> {error}
+                    <button onClick={() => setError('')} className="alert-close">×</button>
+                </div>
+            )}
+            {success && (
+                <div className="alert alert-success">
+                    <FaSave /> {success}
+                    <button onClick={() => setSuccess('')} className="alert-close">×</button>
+                </div>
+            )}
+
+            {/* Header de la página */}
             <div className="page-header">
                 <div className="header-title">
                     <FaCalendarAlt className="page-icon" />
                     <div>
-                        <h1>Eventos Generales</h1>
-                        <p>Gestión de eventos principales y sus detalles.</p>
+                        <h1>Gestión de Eventos Generales</h1>
+                        <p>Administra los eventos principales de la institución.</p>
                     </div>
                 </div>
                 <div className="header-actions">
-                    <button onClick={openCreateModal} className="btn btn-primary">
-                        <FaPlus /> Crear Nuevo Evento
-                    </button>
-                    <button onClick={loadInitialData} className="btn btn-secondary" title="Recargar">
-                        <FaSync />
-                    </button>
-                </div>
-            </div>
-
-            {error && <div className="alert alert-danger">{error}</div>}
-
-            <div className="card">
-                <div className="card-header">
-                    <h2>Eventos Generales ({filteredEventos.length})</h2>
                     <div className="search-box">
                         <FaSearch className="search-icon" />
                         <input
                             type="text"
                             placeholder="Buscar evento..."
-                            className="form-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            className="form-input"
                         />
                     </div>
-
-                    {/* Nuevo Filtro por Período */}
-                    <div className="form-group" style={{ marginRight: '10px' }}>
+                    <div className="filter-group">
                         <select
                             className="form-select"
                             value={filtroPeriodo}
@@ -312,9 +328,6 @@ const EventosGeneralesPage = () => {
                                 </option>
                             ))}
                         </select>
-                    </div>
-
-                    <div className="form-group">
                         <select
                             className="form-select"
                             value={filtroPrograma}
@@ -328,18 +341,52 @@ const EventosGeneralesPage = () => {
                             ))}
                         </select>
                     </div>
+                    <button onClick={openCreateModal} className="btn btn-primary">
+                        <FaPlus /> Nuevo Evento
+                    </button>
+                    <button onClick={loadInitialData} className="btn btn-secondary" title="Recargar">
+                        <FaSync />
+                    </button>
                 </div>
-
-                {renderCards()}
             </div>
 
+            {/* Contenedor de Cards */}
+            <div className="card-container">
+                <h2 className="section-title">Eventos Activos ({filteredEventos.length})</h2>
+
+                {filteredEventos.length === 0 ? (
+                    <div className="empty-state-card">
+                        <FaCalendarAlt size={50} style={{ opacity: 0.5 }} />
+                        <p>{searchTerm || filtroPrograma || filtroPeriodo ? 'No se encontraron eventos que coincidan con la búsqueda o filtros.' : 'No hay eventos generales registrados.'}</p>
+                        {!(searchTerm || filtroPrograma || filtroPeriodo) && (
+                            <button onClick={openCreateModal} className="btn btn-secondary">
+                                <FaPlus /> Crear el primer evento
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div className="cards-grid">
+                        {filteredEventos.map((evento) => (
+                            <EventoGeneralCard
+                                key={evento.idEventoGeneral}
+                                evento={evento}
+                                onEdit={openEditModal}
+                                onDelete={handleDelete}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Modal para Crear/Editar Evento General (se mantiene el estilo original) */}
             {isModalOpen && (
                 <EventoGeneralForm
                     evento={currentEvento}
                     onClose={closeModal}
                     onSave={handleSave}
                     programas={programas}
-                    periodos={periodos} // Pasar períodos al formulario
+                    periodos={periodos}
+                    loading={loading}
                 />
             )}
         </div>
@@ -347,10 +394,9 @@ const EventosGeneralesPage = () => {
 };
 
 // Se actualiza el componente de formulario
-const EventoGeneralForm = ({ evento, onClose, onSave, programas, periodos }) => {
+const EventoGeneralForm = ({ evento, onClose, onSave, programas, periodos, loading }) => {
     const [formData, setFormData] = useState(evento);
-    const [loadingProgramas, setLoadingProgramas] = useState(false); // Mantener para el spinner si se necesitara
-    const [error, setError] = useState(null);
+    const [error, setError] = useState('');
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -360,7 +406,6 @@ const EventoGeneralForm = ({ evento, onClose, onSave, programas, periodos }) => 
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Validaciones: Se cambia cicloAcademico por periodoId
         if (!formData.nombre || !formData.fechaInicio || !formData.fechaFin || !formData.periodoId || !formData.programaId) {
             setError('Todos los campos marcados con * son requeridos');
             return;
@@ -443,7 +488,6 @@ const EventoGeneralForm = ({ evento, onClose, onSave, programas, periodos }) => 
                         </div>
                     </div>
 
-                    {/* NUEVO CAMPO: Periodo */}
                     <div className="form-group">
                         <label htmlFor="periodoId">Período Académico *</label>
                         <select
@@ -464,10 +508,9 @@ const EventoGeneralForm = ({ evento, onClose, onSave, programas, periodos }) => 
                         <small className="form-help">Seleccione el período al que pertenece el evento.</small>
                     </div>
 
-
                     <div className="form-group">
                         <label htmlFor="programaId">Programa de Estudio *</label>
-                        {loadingProgramas ? (
+                        {loading ? (
                             <div className="form-select-loading">
                                 <FaSpinner className="spinner" /> Cargando programas...
                             </div>

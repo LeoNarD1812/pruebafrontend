@@ -5,6 +5,7 @@ import {
     FaQrcode, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaSearch, FaTimes,
     FaListAlt, FaUserCheck, FaUserClock, FaUserTimes, FaUserTag
 } from 'react-icons/fa';
+import './lider-global.css';
 
 // Función para formatear la hora
 const formatTime = (timeString) => {
@@ -127,7 +128,7 @@ const ListaAsistenciaModal = ({ sesion, liderId, onClose }) => {
                                         </td>
                                         <td>{p.grupoPequenoNombre}</td>
                                         <td>{getEstadoActual(p)}</td>
-                                        <td className="actions-cell" style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                        <td className="actions-cell">
                                             <button title="Presente" className="btn btn-sm btn-success" onClick={() => handleMarcarAsistencia(p.personaId, 'PRESENTE')} disabled={p.estadoAsistencia === 'PRESENTE'}><FaUserCheck /></button>
                                             <button title="Tarde" className="btn btn-sm btn-warning" onClick={() => handleMarcarAsistencia(p.personaId, 'TARDE')} disabled={p.estadoAsistencia === 'TARDE'}><FaUserClock /></button>
                                             <button title="Ausente" className="btn btn-sm btn-danger" onClick={() => handleMarcarAsistencia(p.personaId, 'AUSENTE')} disabled={p.estadoAsistencia === 'AUSENTE'}><FaUserTimes /></button>
@@ -287,16 +288,16 @@ const RegistrarAsistenciaPage = () => {
                                     <td>{sesion.eventoGeneralNombre}</td>
                                     <td>{formatTime(sesion.horaInicio)} - {formatTime(sesion.horaFin)}</td>
                                     <td>{sesion.lugar || 'No especificado'}</td>
-                                    <td className="actions-cell" style={{ display: 'flex', gap: '10px' }}>
+                                    <td className="actions-cell">
                                         <button
-                                            className="btn btn-primary"
+                                            className="btn btn-primary btn-sm"
                                             onClick={() => handleGenerarQR(sesion)}
                                             disabled={loadingQR}
                                         >
                                             <FaQrcode /> Generar QR
                                         </button>
                                         <button
-                                            className="btn btn-secondary"
+                                            className="btn btn-secondary btn-sm"
                                             onClick={() => handleVerLista(sesion)}
                                             disabled={loadingQR}
                                         >

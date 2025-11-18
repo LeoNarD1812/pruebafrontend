@@ -114,7 +114,7 @@ const Facultades = () => {
                                     <tr key={facultad.idFacultad}>
                                         <td>{facultad.nombre}</td>
                                         <td>{facultad.descripcion}</td>
-                                        <td>{facultad.sede?.nombre || 'N/A'}</td>
+                                        <td>{sedes.find(s => s.idSede === facultad.idSede)?.nombre || 'N/A'}</td>
                                         <td>
                                             <button onClick={() => handleOpenModal(facultad)} className="btn btn-secondary">
                                                 <FaEdit />
@@ -141,15 +141,11 @@ const Facultades = () => {
 };
 
 const FacultadForm = ({ currentFacultad, sedes, onSave, onClose }) => {
-    const [facultad, setFacultad] = useState(currentFacultad || { nombre: '', descripcion: '', sede: { idSede: '' } });
+    const [facultad, setFacultad] = useState(currentFacultad || { nombre: '', descripcion: '', idSede: '' });
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if (name === 'idSede') {
-            setFacultad({ ...facultad, sede: { idSede: value } });
-        } else {
-            setFacultad({ ...facultad, [name]: value });
-        }
+        setFacultad({ ...facultad, [name]: value });
     };
 
     const handleSubmit = (e) => {
@@ -174,7 +170,7 @@ const FacultadForm = ({ currentFacultad, sedes, onSave, onClose }) => {
                 </div>
                 <div className="form-group">
                     <label>Sede</label>
-                    <select name="idSede" value={facultad.sede?.idSede || ''} onChange={handleChange} required className="form-select">
+                    <select name="idSede" value={facultad.idSede || ''} onChange={handleChange} required className="form-select">
                         <option value="">Seleccione una sede</option>
                         {(sedes || []).map(sede => (
                             <option key={sede.idSede} value={sede.idSede}>{sede.nombre}</option>

@@ -111,19 +111,7 @@ const Programas = () => {
                             </thead>
                             <tbody>
                                 {(programas || []).map((programa) => (
-                                    <tr key={programa.idPrograma}>
-                                        <td>{programa.nombre}</td>
-                                        <td>{programa.descripcion}</td>
-                                        <td>{programa.facultad?.nombre || 'N/A'}</td>
-                                        <td>
-                                            <button onClick={() => handleOpenModal(programa)} className="btn btn-secondary">
-                                                <FaEdit />
-                                            </button>
-                                            <button onClick={() => handleDelete(programa.idPrograma)} className="btn btn-danger">
-                                                <FaTrash />
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <tr key={programa.idPrograma}><td>{programa.nombre}</td><td>{programa.descripcion}</td><td>{programa.facultadNombre}</td><td><button onClick={() => handleOpenModal(programa)} className="btn btn-secondary"><FaEdit /></button><button onClick={() => handleDelete(programa.idPrograma)} className="btn btn-danger"><FaTrash /></button></td></tr>
                                 ))}
                             </tbody>
                         </table>
@@ -141,20 +129,41 @@ const Programas = () => {
 };
 
 const ProgramaForm = ({ currentPrograma, facultades, onSave, onClose }) => {
-    const [programa, setPrograma] = useState(currentPrograma || { nombre: '', descripcion: '', facultad: { idFacultad: '' } });
+    const [programa, setPrograma] = useState(currentPrograma ? {
+        ...currentPrograma,
+        facultadId: currentPrograma.facultadId || null,
+        facultadNombre: currentPrograma.facultadNombre || ''
+    } : {
+        nombre: '',
+        descripcion: '',
+        facultadId: null,
+        facultadNombre: ''
+    });
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if (name === 'idFacultad') {
-            setPrograma({ ...programa, facultad: { idFacultad: value } });
+        if (name === 'facultadId') {
+            const selectedFacultad = facultades.find(f => String(f.idFacultad) === value);
+            setPrograma(prev => ({
+                ...prev,
+                facultadId: value === '' ? null : Number(value),
+                facultadNombre: selectedFacultad ? selectedFacultad.nombre : ''
+            }));
         } else {
-            setPrograma({ ...programa, [name]: value });
+            setPrograma(prev => ({ ...prev, [name]: value }));
         }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(programa);
+        const dataToSend = {
+            idPrograma: programa.idPrograma,
+            nombre: programa.nombre,
+            descripcion: programa.descripcion,
+            facultadId: programa.facultadId,
+            facultadNombre: programa.facultadNombre
+        };
+        onSave(dataToSend);
     };
 
     return (
@@ -174,10 +183,10 @@ const ProgramaForm = ({ currentPrograma, facultades, onSave, onClose }) => {
                 </div>
                 <div className="form-group">
                     <label>Facultad</label>
-                    <select name="idFacultad" value={programa.facultad?.idFacultad || ''} onChange={handleChange} required className="form-select">
+                    <select name="facultadId" value={String(programa.facultadId || '')} onChange={handleChange} required className="form-select">
                         <option value="">Seleccione una facultad</option>
                         {(facultades || []).map(facultad => (
-                            <option key={facultad.idFacultad} value={facultad.idFacultad}>{facultad.nombre}</option>
+                            <option key={facultad.idFacultad} value={String(facultad.idFacultad)}>{facultad.nombre}</option>
                         ))}
                     </select>
                 </div>

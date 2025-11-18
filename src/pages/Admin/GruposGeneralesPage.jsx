@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { FaUsers, FaPlus, FaEdit, FaTrashAlt, FaSearch, FaTimes, FaSync, FaInfoCircle, FaUserFriends, FaCalendarAlt } from 'react-icons/fa';
+import {
+    FaUsers,
+    FaPlus,
+    FaEdit,
+    FaTrashAlt,
+    FaSearch,
+    FaTimes,
+    FaSync,
+    FaInfoCircle,
+    FaUserFriends,
+    FaCalendarAlt,
+    FaExclamationTriangle,
+    FaSave
+} from 'react-icons/fa';
 import { crudService } from '../../services/crudService';
 import { formatDateTime } from '../../utils/helpers';
 
@@ -15,7 +28,8 @@ const GruposGeneralesPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentGrupo, setCurrentGrupo] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [error, setError] = useState(null);
+    const [error, setError] = useState(''); // Cambiado a string
+    const [success, setSuccess] = useState(''); // Añadido para mensajes de éxito
 
     // Estado del formulario
     const [formData, setFormData] = useState({
@@ -46,10 +60,9 @@ const GruposGeneralesPage = () => {
         try {
             setLoading(true);
             const data = await grupoGeneralService.findAll();
-            console.log('Grupos cargados:', data);
             setGrupos(data);
             setFilteredGrupos(data);
-            setError(null);
+            setError(''); // Limpiar error
         } catch (err) {
             console.error("Error loading grupos:", err);
             setError("Error al cargar grupos generales: " + (err.message || 'Verifique la conexión'));
@@ -76,17 +89,18 @@ const GruposGeneralesPage = () => {
                 descripcion: grupoData.descripcion || null
             };
 
-            console.log('🔄 Enviando payload:', payload);
-
             if (currentGrupo) {
                 await grupoGeneralService.update(currentGrupo.idGrupoGeneral, payload);
+                setSuccess('Grupo general actualizado exitosamente');
             } else {
                 await grupoGeneralService.save(payload);
+                setSuccess('Grupo general creado exitosamente');
             }
 
             await loadGrupos();
             closeModal();
-            setError(null);
+            setError(''); // Limpiar error
+            setTimeout(() => setSuccess(''), 3000); // Limpiar éxito después de 3s
         } catch (error) {
             console.error("❌ Error saving grupo:", error);
             let errorMessage = "Error al guardar el grupo: ";
@@ -97,7 +111,7 @@ const GruposGeneralesPage = () => {
                     if (error.response.data.message) {
                         errorMessage += error.response.data.message;
                     } else {
-                        errorMessage += JSON.stringify(error.response.data);
+                        errorMessage += JSON.response.data.message || JSON.stringify(error.response.data);
                     }
                 } else {
                     errorMessage += error.response.statusText;
@@ -116,8 +130,10 @@ const GruposGeneralesPage = () => {
         if (window.confirm('¿Está seguro de eliminar este grupo general? Esta acción es irreversible y afectará a todos los grupos pequeños asociados.')) {
             try {
                 await grupoGeneralService.delete(id);
+                setSuccess('Grupo general eliminado exitosamente');
                 await loadGrupos();
-                setError(null);
+                setError(''); // Limpiar error
+                setTimeout(() => setSuccess(''), 3000); // Limpiar éxito después de 3s
             } catch (error) {
                 console.error("Error deleting grupo:", error);
                 setError("Error al eliminar el grupo: " + error.message);
@@ -133,6 +149,7 @@ const GruposGeneralesPage = () => {
             descripcion: ''
         });
         setIsModalOpen(true);
+        setError(''); // Limpiar error
     };
 
     const openEditModal = (grupo) => {
@@ -143,12 +160,13 @@ const GruposGeneralesPage = () => {
             descripcion: grupo.descripcion || ''
         });
         setIsModalOpen(true);
+        setError(''); // Limpiar error
     };
 
     const closeModal = () => {
         setCurrentGrupo(null);
         setIsModalOpen(false);
-        setError(null);
+        setError(''); // Limpiar error
     };
 
     const handleFormChange = (e) => {
@@ -175,141 +193,128 @@ const GruposGeneralesPage = () => {
         handleSave(formData);
     };
 
-    const renderFormContent = () => {
+    // --- Componente de Card para cada Grupo General ---
+    const GrupoGeneralCard = ({ grupo, onEdit, onDelete }) => {
+        const [showFullDescription, setShowFullDescription] = useState(false);
+
+        const toggleDescription = () => {
+            setShowFullDescription(!showFullDescription);
+        };
+
+        const description = grupo.descripcion || 'Sin descripción disponible';
+        const shouldTruncate = description.length > 120;
+        const displayDescription = showFullDescription ? description : description.substring(0, 120) + (shouldTruncate ? '...' : '');
+
         return (
-            <form onSubmit={handleFormSubmit}>
-                <div className="modal-header">
-                    <h2>
-                        {currentGrupo ? 'Editar Grupo General' : 'Crear Grupo General'}
-                    </h2>
-                    <button type="button" onClick={closeModal} className="close-modal">
-                        <FaTimes />
-                    </button>
+            <div className="card">
+                <div className="card-header">
+                    <FaUsers className="page-icon" /> {/* Icono principal del card */}
+                    <h3 className="card-title">{grupo.nombre}</h3>
                 </div>
-
-                <div className="modal-body">
-                    {error && <div className="alert alert-danger">{error}</div>}
-
-                    <div className="form-group">
-                        <label htmlFor="eventoGeneralId">Evento General *</label>
-                        <select
-                            id="eventoGeneralId"
-                            name="eventoGeneralId"
-                            value={formData.eventoGeneralId}
-                            onChange={handleFormChange}
-                            required
-                            className="form-select"
-                        >
-                            <option value="">Seleccione un evento</option>
-                            {eventosGenerales.map(evento => (
-                                <option key={evento.idEventoGeneral} value={evento.idEventoGeneral}>
-                                    {evento.nombre}
-                                    {/* Mostrar periodoNombre en lugar de cicloAcademico */}
-                                    {evento.periodoNombre && ` - ${evento.periodoNombre}`}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="nombre">Nombre del Grupo *</label>
-                        <input
-                            type="text"
-                            id="nombre"
-                            name="nombre"
-                            value={formData.nombre}
-                            onChange={handleFormChange}
-                            required
-                            placeholder="Ej: Grupo A, Grupo de Matemáticas, Equipo de Investigación..."
-                            maxLength="100"
-                            className="form-input"
-                        />
-                        <small className="form-help">Máximo 100 caracteres</small>
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="descripcion">Descripción</label>
-                        <textarea
-                            id="descripcion"
-                            name="descripcion"
-                            value={formData.descripcion}
-                            onChange={handleFormChange}
-                            placeholder="Descripción opcional del grupo general..."
-                            rows="3"
-                            className="form-textarea"
-                        />
-                        <small className="form-help">Información adicional sobre el propósito o características del grupo</small>
-                    </div>
-                </div>
-
-                <div className="modal-footer">
-                    <button type="submit" className="btn btn-primary">
-                        {currentGrupo ? 'Guardar Cambios' : 'Crear Grupo'}
-                    </button>
-                    <button type="button" onClick={closeModal} className="btn btn-secondary">
-                        Cancelar
-                    </button>
-                </div>
-            </form>
-        );
-    };
-
-    const renderCards = () => {
-        if (filteredGrupos.length === 0) {
-            return (
-                <div className="empty-state">
-                    <FaUsers className="empty-icon" />
-                    <h3>No hay grupos generales</h3>
-                    <p>
-                        {searchTerm
-                            ? 'No se encontraron grupos que coincidan con tu búsqueda.'
-                            : 'Comienza creando tu primer grupo general.'
-                        }
-                    </p>
-                    {!searchTerm && (
-                        <button onClick={openCreateModal} className="btn btn-primary">
-                            <FaPlus /> Crear Primer Grupo
+                <div className="card-content">
+                    <p>{displayDescription}</p>
+                    {shouldTruncate && (
+                        <button className="btn-link" onClick={toggleDescription}>
+                            {showFullDescription ? ' ver menos' : ' ver más'}
                         </button>
                     )}
                 </div>
-            );
-        }
 
-        return (
-            <div className="cards-grid">
-                {filteredGrupos.map((grupo) => (
-                    <GrupoCard
-                        key={grupo.idGrupoGeneral}
-                        grupo={grupo}
-                        onEdit={openEditModal}
-                        onDelete={handleDelete}
-                    />
-                ))}
+                <div className="card-body-info">
+                    <div className="info-item">
+                        <FaCalendarAlt className="info-icon" />
+                        <div className="info-text">
+                            <span className="info-label">Evento General</span>
+                            <strong className="info-value">{grupo.eventoGeneralNombre || 'N/A'}</strong>
+                            {grupo.periodoNombre && <small className="info-subvalue">{grupo.periodoNombre}</small>}
+                        </div>
+                    </div>
+                    <div className="info-item">
+                        <FaUserFriends className="info-icon" />
+                        <div className="info-text">
+                            <span className="info-label">Grupos Pequeños</span>
+                            <strong className="info-value">{grupo.cantidadGruposPequenos || 0}</strong>
+                        </div>
+                    </div>
+                    <div className="info-item">
+                        <FaUsers className="info-icon" />
+                        <div className="info-text">
+                            <span className="info-label">Participantes</span>
+                            <strong className="info-value">{grupo.totalParticipantes || 0}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="modal-footer"> {/* Usamos modal-footer para los botones de acción */}
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => onEdit(grupo)}
+                        title="Editar grupo general"
+                    >
+                        <FaEdit /> Editar
+                    </button>
+                    <button
+                        className="btn btn-danger"
+                        onClick={() => onDelete(grupo.idGrupoGeneral)}
+                        title="Eliminar grupo general"
+                    >
+                        <FaTrashAlt /> Eliminar
+                    </button>
+                </div>
             </div>
         );
     };
+    // --- Fin Componente de Card ---
 
     if (loading) {
         return (
             <div className="page-container">
-                <FaUsers className="spinner" /> Cargando grupos generales...
+                <div className="loading-container">
+                    <FaSync className="spinner" />
+                    <p>Cargando grupos generales...</p>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="page-container">
+            {/* Alertas */}
+            {error && (
+                <div className="alert alert-danger">
+                    <FaExclamationTriangle /> {error}
+                    <button onClick={() => setError('')} className="alert-close">×</button>
+                </div>
+            )}
+            {success && (
+                <div className="alert alert-success">
+                    <FaSave /> {success}
+                    <button onClick={() => setSuccess('')} className="alert-close">×</button>
+                </div>
+            )}
+
+            {/* Header de la página */}
             <div className="page-header">
                 <div className="header-title">
                     <FaUsers className="page-icon" />
                     <div>
-                        <h1>Grupos Generales</h1>
-                        <p>Organización de la estructura de grupos mayores dentro de un evento.</p>
+                        <h1>Gestión de Grupos Generales</h1>
+                        <p>Organiza la estructura de grupos mayores dentro de un evento.</p>
                     </div>
                 </div>
                 <div className="header-actions">
+                    <div className="search-box">
+                        <FaSearch className="search-icon" />
+                        <input
+                            type="text"
+                            placeholder="Buscar grupo general..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="form-input"
+                        />
+                    </div>
                     <button onClick={openCreateModal} className="btn btn-primary">
-                        <FaPlus /> Crear Nuevo Grupo General
+                        <FaPlus /> Nuevo Grupo General
                     </button>
                     <button onClick={loadGrupos} className="btn btn-secondary" title="Recargar">
                         <FaSync />
@@ -317,125 +322,112 @@ const GruposGeneralesPage = () => {
                 </div>
             </div>
 
-            {error && <div className="alert alert-danger">{error}</div>}
+            {/* Contenedor de Cards */}
+            <div className="card-container">
+                <h2 className="section-title">Grupos Generales Activos ({filteredGrupos.length})</h2>
 
-            <div className="card">
-                <div className="card-header">
-                    <h2>Grupos Generales ({filteredGrupos.length})</h2>
-                    <div className="search-box">
-                        <FaSearch className="search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Buscar grupo..."
-                            className="form-input"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                {renderCards()}
-            </div>
-
-            {isModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        {renderFormContent()}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-// Componente Card para cada grupo - Estilo similar a EventosGeneralesPage
-const GrupoCard = ({ grupo, onEdit, onDelete }) => {
-    const [showFullDescription, setShowFullDescription] = useState(false);
-
-    const toggleDescription = () => {
-        setShowFullDescription(!showFullDescription);
-    };
-
-    const description = grupo.descripcion || 'Sin descripción disponible';
-    const shouldTruncate = description.length > 120;
-    const displayDescription = showFullDescription ? description : description.substring(0, 120) + (shouldTruncate ? '...' : '');
-
-    return (
-        <div className="card">
-            {/* Header */}
-            <div className="card-header">
-                <div className="grupo-title-section">
-                    <FaUsers className="grupo-icon" />
-                    <h3 className="grupo-title">{grupo.nombre}</h3>
-                </div>
-                <div className="grupo-stats">
-                    <span className="badge">
-                        <FaUserFriends className="stat-icon" />
-                        {grupo.cantidadGruposPequenos || 0} grupos
-                    </span>
-                    <span className="badge">
-                        <FaUsers className="stat-icon" />
-                        {grupo.totalParticipantes || 0} participantes
-                    </span>
-                </div>
-            </div>
-
-            {/* Descripción */}
-            {grupo.descripcion && (
-                <div className="card-content">
-                    <p>
-                        {displayDescription}
-                        {shouldTruncate && (
-                            <button
-                                className="btn-link"
-                                onClick={toggleDescription}
-                            >
-                                {showFullDescription ? ' ver menos' : ' ver más'}
+                {filteredGrupos.length === 0 ? (
+                    <div className="empty-state-card">
+                        <FaUsers size={50} style={{ opacity: 0.5 }} />
+                        <p>{searchTerm ? 'No se encontraron grupos que coincidan con la búsqueda' : 'No hay grupos generales registrados.'}</p>
+                        {!searchTerm && (
+                            <button onClick={openCreateModal} className="btn btn-secondary">
+                                <FaPlus /> Crear el primer grupo general
                             </button>
                         )}
-                    </p>
-                </div>
-            )}
-
-            {/* Detalles del grupo */}
-            <div className="card-content">
-                <div className="detail-item">
-                    <FaCalendarAlt className="detail-icon" />
-                    <div className="detail-content">
-                        <span className="label">Evento:</span>
-                        <span className="value">{grupo.eventoGeneralNombre || 'No asignado'}</span>
                     </div>
-                </div>
-
-
-                {grupo.createdAt && (
-                    <div className="detail-item">
-                        <FaCalendarAlt className="detail-icon" />
-                        <div className="detail-content">
-                            <span className="label">Creado:</span>
-                            <span className="value">{formatDateTime(grupo.createdAt)}</span>
-                        </div>
+                ) : (
+                    <div className="cards-grid">
+                        {filteredGrupos.map((grupo) => (
+                            <GrupoGeneralCard
+                                key={grupo.idGrupoGeneral}
+                                grupo={grupo}
+                                onEdit={openEditModal}
+                                onDelete={handleDelete}
+                            />
+                        ))}
                     </div>
                 )}
             </div>
 
-            {/* Acciones */}
-            <div className="modal-footer">
-                <button
-                    className="btn btn-secondary"
-                    onClick={() => onEdit(grupo)}
-                    title="Editar grupo"
-                >
-                    <FaEdit /> Editar
-                </button>
-                <button
-                    className="btn btn-danger"
-                    onClick={() => onDelete(grupo.idGrupoGeneral)}
-                    title="Eliminar grupo"
-                >
-                    <FaTrashAlt /> Eliminar
-                </button>
-            </div>
+            {/* Modal para Crear/Editar Grupo General (se mantiene el estilo original) */}
+            {isModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h3>
+                                <FaUsers style={{ marginRight: '10px' }} />
+                                {currentGrupo ? 'Editar Grupo General' : 'Crear Nuevo Grupo General'}
+                            </h3>
+                            <button type="button" onClick={closeModal} className="close-modal">
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <form onSubmit={handleFormSubmit} className="modal-body">
+                            {error && <div className="alert alert-danger">{error}</div>}
+
+                            <div className="form-group">
+                                <label htmlFor="eventoGeneralId">Evento General *</label>
+                                <select
+                                    id="eventoGeneralId"
+                                    name="eventoGeneralId"
+                                    value={formData.eventoGeneralId}
+                                    onChange={handleFormChange}
+                                    required
+                                    className="form-select"
+                                >
+                                    <option value="">Seleccione un evento</option>
+                                    {eventosGenerales.map(evento => (
+                                        <option key={evento.idEventoGeneral} value={evento.idEventoGeneral}>
+                                            {evento.nombre}
+                                            {evento.periodoNombre && ` - ${evento.periodoNombre}`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="nombre">Nombre del Grupo *</label>
+                                <input
+                                    type="text"
+                                    id="nombre"
+                                    name="nombre"
+                                    value={formData.nombre}
+                                    onChange={handleFormChange}
+                                    required
+                                    placeholder="Ej: Grupo A, Grupo de Matemáticas, Equipo de Investigación..."
+                                    maxLength="100"
+                                    className="form-input"
+                                />
+                                <small className="form-help">Máximo 100 caracteres</small>
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="descripcion">Descripción</label>
+                                <textarea
+                                    id="descripcion"
+                                    name="descripcion"
+                                    value={formData.descripcion}
+                                    onChange={handleFormChange}
+                                    placeholder="Descripción opcional del grupo general..."
+                                    rows="3"
+                                    className="form-textarea"
+                                />
+                                <small className="form-help">Información adicional sobre el propósito o características del grupo</small>
+                            </div>
+
+                            <div className="modal-footer">
+                                <button type="submit" className="btn btn-primary">
+                                    {currentGrupo ? 'Guardar Cambios' : 'Crear Grupo'}
+                                </button>
+                                <button type="button" onClick={closeModal} className="btn btn-secondary">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

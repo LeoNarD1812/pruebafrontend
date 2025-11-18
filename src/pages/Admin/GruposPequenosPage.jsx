@@ -89,18 +89,11 @@ const GruposPequenosPage = () => {
         }
     };
 
-    // ✅ --- SECCIÓN CORREGIDA ---
     const loadLideresDisponibles = async (excludeGrupoPequenoId = null) => {
         try {
             setLoadingLideres(true);
-
-            // 1. Usar el endpoint correcto que devuelve PersonaDTO
             const data = await usuarioService.getLideresDisponibles(excludeGrupoPequenoId);
-
-            // 2. Ya no se necesita el mapeo manual (data.map),
-            //    porque 'data' ahora contiene idPersona, nombreCompleto, etc.
             setLideresDisponibles(data);
-
             if (data.length === 0) {
                 setError('No se encontraron líderes disponibles. Asegúrese de que existan usuarios con el rol LIDER que no estén asignados a otro grupo.');
             }
@@ -111,12 +104,9 @@ const GruposPequenosPage = () => {
             setLoadingLideres(false);
         }
     };
-    // ✅ --- FIN DE SECCIÓN CORREGIDA ---
 
     const loadParticipantesDisponibles = async (grupoPequenoId) => {
         try {
-            console.log("Paso 1: Abriendo modal para grupoPequenoId:", grupoPequenoId);
-
             const grupoCompleto = await grupoPequenoService.findById(grupoPequenoId);
             const eventoGeneralId = grupoCompleto.eventoGeneralId;
 
@@ -125,34 +115,18 @@ const GruposPequenosPage = () => {
                 return;
             }
 
-            console.log("Paso 2: Encontrado eventoGeneralId:", eventoGeneralId, "(Postman usó ID 1)");
-
             const data = await grupoPequenoService.getParticipantesDisponibles(eventoGeneralId);
-
-            console.log("Paso 3: Datos recibidos del API (data):", data); // Verifica si esto está vacío
 
             const participantesActualesRaw = await grupoParticipanteService.findByGrupoPequeno(grupoPequenoId);
             const idsParticipantesActivosEnEsteGrupo = participantesActualesRaw
                 .filter(p => p.estado === 'ACTIVO')
                 .map(p => p.personaId);
 
-            console.log("Paso 4: IDs en este grupo (idsParticipantesActivosEnEsteGrupo):", idsParticipantesActivosEnEsteGrupo);
-
             const disponiblesParaAgregar = data.filter(persona => {
                 const yaActivoEnEsteGrupo = idsParticipantesActivosEnEsteGrupo.includes(persona.personaId);
-
-                // Log de por qué un participante es filtrado
-                if (persona.yaInscrito) {
-                    console.log(`Filtrado ${persona.nombreCompleto}: yaInscrito es true`);
-                }
-                if (yaActivoEnEsteGrupo) {
-                    console.log(`Filtrado ${persona.nombreCompleto}: yaActivoEnEsteGrupo es true`);
-                }
-
                 return !persona.yaInscrito && !yaActivoEnEsteGrupo;
             });
 
-            console.log("Paso 5: Participantes finales para mostrar (disponiblesParaAgregar):", disponiblesParaAgregar);
             setParticipantesDisponibles(disponiblesParaAgregar);
 
         } catch (error) {
@@ -203,7 +177,6 @@ const GruposPequenosPage = () => {
     const openGestionParticipantesModal = async (grupo) => {
         setCurrentGrupo(grupo);
         try {
-            // Recargar listas para el modal
             await loadParticipantesActuales(grupo.idGrupoPequeno);
             await loadParticipantesDisponibles(grupo.idGrupoPequeno);
             setShowParticipantesModal(true);
@@ -219,7 +192,7 @@ const GruposPequenosPage = () => {
             const payload = {
                 ...formData,
                 grupoGeneralId: parseInt(formData.grupoGeneralId, 10),
-                liderId: parseInt(formData.liderId, 10), // Esto ahora será el idPersona (correcto)
+                liderId: parseInt(formData.liderId, 10),
                 capacidadMaxima: parseInt(formData.capacidadMaxima, 10),
             };
 
@@ -234,7 +207,12 @@ const GruposPequenosPage = () => {
             loadGrupos();
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
-            setError(`Error al ${currentGrupo ? 'actualizar' : 'crear'} el grupo: ${err.message}`);
+            const backendMessage = err.response?.data?.message || err.message;
+            const displayMessage = (backendMessage && backendMessage !== 'Request failed with status code 400')
+                ? backendMessage
+                : 'Verifique si el grupo está lleno o el participante ya está inscrito.';
+
+            setError(`Error al ${currentGrupo ? 'actualizar' : 'crear'} el grupo: ${displayMessage}`);
             console.error(err);
         }
     };
@@ -324,7 +302,7 @@ const GruposPequenosPage = () => {
                 </div>
                 <div className="card-content">
                     <p>{grupo.descripcion}</p>
-                    <span className="badge">{grupo.grupoGeneralNombre}</span>
+                    <span className="info-value">{grupo.grupoGeneralNombre}</span>
                 </div>
 
                 <div className="card-body-info">
