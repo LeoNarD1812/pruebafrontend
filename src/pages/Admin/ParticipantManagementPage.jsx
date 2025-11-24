@@ -11,7 +11,8 @@ const ParticipantManagementPage = () => {
     const [filters, setFilters] = useState({
         searchTerm: '',
         estado: '',
-        tipoPersona: ''
+        tipoPersona: '',
+        periodo: '' // Nuevo estado para el filtro de periodo
     });
 
     useEffect(() => {
@@ -54,7 +55,8 @@ const ParticipantManagementPage = () => {
                 participant.nombreCompleto?.toLowerCase().includes(searchLower) ||
                 participant.documento?.toLowerCase().includes(searchLower) ||
                 participant.correo?.toLowerCase().includes(searchLower) ||
-                participant.tipoPersona?.toLowerCase().includes(searchLower)
+                participant.tipoPersona?.toLowerCase().includes(searchLower) ||
+                participant.periodo?.toLowerCase().includes(searchLower) // Búsqueda también por periodo
             );
         }
 
@@ -68,6 +70,11 @@ const ParticipantManagementPage = () => {
             filtered = filtered.filter(participant => participant.tipoPersona === filters.tipoPersona);
         }
 
+        // Filtro por periodo
+        if (filters.periodo) {
+            filtered = filtered.filter(participant => participant.periodo === filters.periodo);
+        }
+
         setFilteredParticipants(filtered);
     };
 
@@ -75,15 +82,17 @@ const ParticipantManagementPage = () => {
         setFilters({
             searchTerm: '',
             estado: '',
-            tipoPersona: ''
+            tipoPersona: '',
+            periodo: ''
         });
     };
 
     // Obtener valores únicos para los filtros
     const uniqueEstados = [...new Set(participants.map(participant => participant.estado))].filter(Boolean);
     const uniqueTiposPersona = [...new Set(participants.map(participant => participant.tipoPersona))].filter(Boolean);
+    const uniquePeriodos = [...new Set(participants.map(participant => participant.periodo))].filter(Boolean).sort().reverse(); // Periodos ordenados descendente
 
-    const hasActiveFilters = filters.searchTerm || filters.estado || filters.tipoPersona;
+    const hasActiveFilters = filters.searchTerm || filters.estado || filters.tipoPersona || filters.periodo;
 
     if (loading) {
         return (
@@ -172,7 +181,7 @@ const ParticipantManagementPage = () => {
                                 name="searchTerm"
                                 value={filters.searchTerm}
                                 onChange={handleFilterChange}
-                                placeholder="Buscar por nombre, documento, correo o tipo..."
+                                placeholder="Buscar por nombre, documento, periodo..."
                                 className="search-input"
                             />
                         </div>
@@ -214,6 +223,23 @@ const ParticipantManagementPage = () => {
                                 ))}
                             </select>
                         </div>
+
+                        {/* Nuevo filtro de Periodo */}
+                        <div className="form-group">
+                            <label htmlFor="filter-periodo" className="form-label">Periodo</label>
+                            <select
+                                name="periodo"
+                                id="filter-periodo"
+                                value={filters.periodo}
+                                onChange={handleFilterChange}
+                                className="form-select"
+                            >
+                                <option value="">Todos los periodos</option>
+                                {uniquePeriodos.map(per => (
+                                    <option key={per} value={per}>{per}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -232,6 +258,7 @@ const ParticipantManagementPage = () => {
                             <th className="col-name">Nombre Completo</th>
                             <th className="col-document">Documento</th>
                             <th className="col-name">Correo</th>
+                            <th className="col-type">Periodo</th> {/* Nueva Columna */}
                             <th className="col-type">Tipo de Persona</th>
                             <th className="col-type">Estado</th>
                         </tr>
@@ -244,6 +271,11 @@ const ParticipantManagementPage = () => {
                                     <div className="info-item">
                                         <div className="info-text">
                                             <div className="info-value">{participant.nombreCompleto}</div>
+                                            {participant.codigoEstudiante && (
+                                                <small className="text-muted" style={{ fontSize: '0.8em', color: '#666' }}>
+                                                    Cód: {participant.codigoEstudiante}
+                                                </small>
+                                            )}
                                         </div>
                                     </div>
                                 </td>
@@ -260,6 +292,16 @@ const ParticipantManagementPage = () => {
                                             <div className="info-value">{participant.correo}</div>
                                         </div>
                                     </div>
+                                </td>
+                                {/* Nueva celda de Periodo */}
+                                <td>
+                                    {participant.periodo ? (
+                                        <span className="badge" style={{ backgroundColor: '#e3f2fd', color: '#0d47a1' }}>
+                                            {participant.periodo}
+                                        </span>
+                                    ) : (
+                                        <span className="text-muted">-</span>
+                                    )}
                                 </td>
                                 <td>
                                         <span className={`badge ${

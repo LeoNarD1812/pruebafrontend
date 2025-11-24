@@ -94,9 +94,6 @@ const GruposPequenosPage = () => {
             setLoadingLideres(true);
             const data = await usuarioService.getLideresDisponibles(excludeGrupoPequenoId);
             setLideresDisponibles(data);
-            if (data.length === 0) {
-                setError('No se encontraron líderes disponibles. Asegúrese de que existan usuarios con el rol LIDER que no estén asignados a otro grupo.');
-            }
         } catch (error) {
             console.error('Error cargando líderes disponibles:', error);
             setError('Error al cargar la lista de líderes: ' + (error.message || 'Error de conexión'));
@@ -169,7 +166,23 @@ const GruposPequenosPage = () => {
             capacidadMaxima: grupo.capacidadMaxima,
             descripcion: grupo.descripcion || ''
         });
+        
+        // Cargar líderes disponibles excluyendo el grupo actual
         await loadLideresDisponibles(grupo.idGrupoPequeno);
+
+        // Asegurarse de que el líder actual esté en la lista
+        setLideresDisponibles(prevLideres => {
+            const liderActualExiste = prevLideres.some(l => l.idPersona === grupo.liderId);
+            if (!liderActualExiste && grupo.liderId) {
+                // Si el líder actual no está en la lista, lo añadimos manualmente
+                return [
+                    { idPersona: grupo.liderId, nombreCompleto: grupo.liderNombre, codigoEstudiante: grupo.liderCodigo },
+                    ...prevLideres
+                ];
+            }
+            return prevLideres;
+        });
+
         setShowModal(true);
         setError('');
     };
@@ -190,10 +203,11 @@ const GruposPequenosPage = () => {
         e.preventDefault();
         try {
             const payload = {
-                ...formData,
+                nombre: formData.nombre,
                 grupoGeneralId: parseInt(formData.grupoGeneralId, 10),
                 liderId: parseInt(formData.liderId, 10),
                 capacidadMaxima: parseInt(formData.capacidadMaxima, 10),
+                descripcion: formData.descripcion
             };
 
             if (currentGrupo) {
@@ -208,11 +222,7 @@ const GruposPequenosPage = () => {
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
             const backendMessage = err.response?.data?.message || err.message;
-            const displayMessage = (backendMessage && backendMessage !== 'Request failed with status code 400')
-                ? backendMessage
-                : 'Verifique si el grupo está lleno o el participante ya está inscrito.';
-
-            setError(`Error al ${currentGrupo ? 'actualizar' : 'crear'} el grupo: ${displayMessage}`);
+            setError(`Error al ${currentGrupo ? 'actualizar' : 'crear'} el grupo: ${backendMessage}`);
             console.error(err);
         }
     };
@@ -247,11 +257,7 @@ const GruposPequenosPage = () => {
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
             const backendMessage = err.response?.data?.message || err.message;
-            const displayMessage = (backendMessage && backendMessage !== 'Request failed with status code 400')
-                ? backendMessage
-                : 'Verifique si el grupo está lleno o el participante ya está inscrito.';
-
-            setError('Error al agregar participante: ' + displayMessage);
+            setError('Error al agregar participante: ' + backendMessage);
             console.error(err);
         }
     };
@@ -484,7 +490,6 @@ const GruposPequenosPage = () => {
                                             className="form-select"
                                         >
                                             <option value="">Seleccionar líder</option>
-                                            {/* ✅ CORREGIDO: Itera sobre los líderes (que ahora son PersonaDTO) */}
                                             {lideresDisponibles.map(lider => (
                                                 <option key={lider.idPersona} value={lider.idPersona}>
                                                     {lider.nombreCompleto}
@@ -493,9 +498,9 @@ const GruposPequenosPage = () => {
                                             ))}
                                         </select>
                                         <small className="form-help">
-                                            {lideresDisponibles.length === 0
-                                                ? 'No se encontraron líderes disponibles con rol LÍDER. Contacte al administrador.'
-                                                : `Se muestran ${lideresDisponibles.length} líder(es) disponible(s) con rol LÍDER`
+                                            {lideresDisponibles.length === 0 && !currentGrupo
+                                                ? 'No se encontraron líderes disponibles con rol LÍDER.'
+                                                : `Se muestran ${lideresDisponibles.length} líder(es) disponible(s).`
                                             }
                                         </small>
                                     </>
@@ -533,7 +538,7 @@ const GruposPequenosPage = () => {
                                 <button
                                     type="submit"
                                     className="btn btn-primary"
-                                    disabled={loadingLideres || (!currentGrupo && lideresDisponibles.length === 0)}
+                                    disabled={loadingLideres}
                                 >
                                     {currentGrupo ? 'Actualizar' : 'Crear'} Grupo
                                 </button>
@@ -595,12 +600,10 @@ const GruposPequenosPage = () => {
                                 <div className="participantes-section">
                                     <h4>Participantes Disponibles ({participantesDisponibles.length})</h4>
                                     <div className="participantes-list">
-                                        {/* Iteramos sobre los participantes disponibles (que ya no están en otro grupo activo Y no están en este) */}
                                         {participantesDisponibles.map(participante => (
                                             <div key={participante.personaId} className="participante-item">
                                                 <div className="participante-info">
                                                     <strong>{participante.nombreCompleto}</strong>
-                                                    {/* Se añade el documento para mejor identificación */}
                                                     <span>{participante.codigoEstudiante} - {participante.documento}</span>
                                                     <small>{participante.correo}</small>
                                                 </div>
@@ -620,7 +623,7 @@ const GruposPequenosPage = () => {
                                         ))}
                                         {participantesDisponibles.length === 0 && (
                                             <div className="empty-state">
-                                                No hay participantes disponibles que cumplan el perfil (Integrante/Estudiante) y no estén ya inscritos en un grupo activo de este evento.
+                                                No hay participantes disponibles que cumplan el perfil y no estén ya inscritos en un grupo activo de este evento.
                                             </div>
                                         )}
                                     </div>

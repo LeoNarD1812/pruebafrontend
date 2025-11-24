@@ -25,15 +25,6 @@ const ProfileEditPage = () => {
                 setProfileData(data);
             } catch (err) {
                 console.error("Error al cargar el perfil:", err);
-                if (err.response) {
-                    console.error("Detalles del error (err.response):", err.response);
-                    console.error("Datos del error (err.response.data):", err.response.data);
-                    console.error("Estado del error (err.response.status):", err.response.status);
-                } else if (err.request) {
-                    console.error("Detalles del error (err.request):", err.request);
-                } else {
-                    console.error("Mensaje de error:", err.message);
-                }
                 setError("Error al cargar el perfil: " + (err.response?.data?.message || err.message || ""));
             } finally {
                 setLoading(false);
@@ -60,35 +51,39 @@ const ProfileEditPage = () => {
         setSuccessMessage(null);
         try {
             const token = authService.getToken();
-            if (!token) {
-                throw new Error("No autenticado");
+            if (!token || !profileData?.idPersona) {
+                throw new Error("No autenticado o perfil no cargado");
             }
-            const dataToSend = { ...profileData };
-            delete dataToSend.tipoPersona;
-            delete dataToSend.usuario;
-            delete dataToSend.idPersona;
 
-            const updatedProfile = await personaService.updateMyProfile(dataToSend, token);
+            // Construir el objeto que coincide con la entidad Persona del backend
+            const dataToSend = {
+                idPersona: profileData.idPersona,
+                nombreCompleto: profileData.nombreCompleto,
+                documento: profileData.documento,
+                correo: profileData.correo,
+                celular: profileData.celular,
+                correoInstitucional: profileData.correoInstitucional,
+                codigoEstudiante: profileData.codigoEstudiante,
+                pais: profileData.pais,
+                religion: profileData.religion,
+                fechaNacimiento: profileData.fechaNacimiento || null,
+                tipoPersona: profileData.tipoPersona || TipoPersona.ESTUDIANTE,
+            };
+
+            // Llamar al servicio con el ID y los datos
+            const updatedProfile = await personaService.update(profileData.idPersona, dataToSend, token);
+            
             setProfileData(updatedProfile);
             setSuccessMessage("Perfil actualizado exitosamente!");
         } catch (err) {
             console.error("Error al actualizar el perfil:", err);
-            if (err.response) {
-                console.error("Detalles del error (err.response):", err.response);
-                console.error("Datos del error (err.response.data):", err.response.data);
-                console.error("Estado del error (err.response.status):", err.response.status);
-            } else if (err.request) {
-                console.error("Detalles del error (err.request):", err.request);
-            } else {
-                console.error("Mensaje de error:", err.message);
-            }
-            setError("Error al actualizar el perfil: " + (err.response?.data?.message || err.message || ""));
+            setError("Error al actualizar el perfil: " + (err.response?.data?.detail || err.response?.data?.message || err.message || ""));
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) {
+    if (loading && !profileData) { // Mostrar spinner solo en la carga inicial
         return (
             <div className="main-content">
                 <div className="loading-container">
@@ -99,7 +94,7 @@ const ProfileEditPage = () => {
         );
     }
 
-    if (error) {
+    if (error && !successMessage) { // No mostrar error si hay un mensaje de éxito
         return (
             <div className="main-content">
                 <div className="alert alert-danger">
@@ -278,7 +273,7 @@ const ProfileEditPage = () => {
                             >
                                 {loading ? (
                                     <>
-                                        <div className="spinner"></div>
+                                        <div className="spinner-small"></div>
                                         Guardando...
                                     </>
                                 ) : (

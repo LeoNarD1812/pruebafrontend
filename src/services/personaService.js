@@ -20,6 +20,21 @@ export const personaService = {
         }
     },
 
+    update: async (id, data, token) => {
+        try {
+            const response = await axios.put(`${API_URL}/${id}`, data, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            throw error;
+        }
+    },
+
     updateMyProfile: async (profileData, token) => {
         try {
             const response = await axios.put(`${API_URL}/my-profile`, profileData, {

@@ -804,7 +804,7 @@
 .form-textarea:focus {
     outline: none;
     border-color: var(--input-border-focus);
-    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.25); /* Usar rgba con variables */
+    box-shadow: 0 0 0 3px rgba(var(--primary-color), 0.25); /* Usar rgba con variables */
 }
 
 .form-textarea {
