@@ -89,10 +89,14 @@ const GruposPequenosPage = () => {
         }
     };
 
-    const loadLideresDisponibles = async (excludeGrupoPequenoId = null) => {
+    const loadLideresDisponibles = async (eventoGeneralId, excludeGrupoId = null) => {
+        if (!eventoGeneralId) {
+            setLideresDisponibles([]);
+            return;
+        }
         try {
             setLoadingLideres(true);
-            const data = await usuarioService.getLideresDisponibles(excludeGrupoPequenoId);
+            const data = await grupoPequenoService.getLideresDisponibles(eventoGeneralId, excludeGrupoId);
             setLideresDisponibles(data);
         } catch (error) {
             console.error('Error cargando líderes disponibles:', error);
@@ -152,7 +156,7 @@ const GruposPequenosPage = () => {
             capacidadMaxima: 20,
             descripcion: ''
         });
-        await loadLideresDisponibles();
+        setLideresDisponibles([]);
         setShowModal(true);
         setError('');
     };
@@ -167,8 +171,10 @@ const GruposPequenosPage = () => {
             descripcion: grupo.descripcion || ''
         });
         
-        // Cargar líderes disponibles excluyendo el grupo actual
-        await loadLideresDisponibles(grupo.idGrupoPequeno);
+        const grupoGeneral = gruposGenerales.find(g => g.idGrupoGeneral === grupo.grupoGeneralId);
+        if (grupoGeneral) {
+            await loadLideresDisponibles(grupoGeneral.eventoGeneralId, grupo.idGrupoPequeno);
+        }
 
         // Asegurarse de que el líder actual esté en la lista
         setLideresDisponibles(prevLideres => {
@@ -176,7 +182,7 @@ const GruposPequenosPage = () => {
             if (!liderActualExiste && grupo.liderId) {
                 // Si el líder actual no está en la lista, lo añadimos manualmente
                 return [
-                    { idPersona: grupo.liderId, nombreCompleto: grupo.liderNombre, codigoEstudiante: grupo.liderCodigo },
+                    { idPersona: grupo.liderId, nombreCompleto: grupo.liderNombre, codigo: grupo.liderCodigo },
                     ...prevLideres
                 ];
             }
@@ -273,6 +279,17 @@ const GruposPequenosPage = () => {
         } catch (err) {
             setError('Error al remover participante');
             console.error(err);
+        }
+    };
+
+    const handleGrupoGeneralChange = (e) => {
+        const grupoGeneralId = e.target.value;
+        setFormData({ ...formData, grupoGeneralId, liderId: '' });
+        const grupoGeneral = gruposGenerales.find(g => g.idGrupoGeneral === parseInt(grupoGeneralId));
+        if (grupoGeneral) {
+            loadLideresDisponibles(grupoGeneral.eventoGeneralId, currentGrupo ? currentGrupo.idGrupoPequeno : null);
+        } else {
+            setLideresDisponibles([]);
         }
     };
 
@@ -462,7 +479,7 @@ const GruposPequenosPage = () => {
                                 <label>Grupo General *</label>
                                 <select
                                     value={formData.grupoGeneralId}
-                                    onChange={(e) => setFormData({...formData, grupoGeneralId: e.target.value})}
+                                    onChange={handleGrupoGeneralChange}
                                     required
                                     className="form-select"
                                 >
@@ -488,19 +505,20 @@ const GruposPequenosPage = () => {
                                             onChange={(e) => setFormData({...formData, liderId: e.target.value})}
                                             required
                                             className="form-select"
+                                            disabled={!formData.grupoGeneralId}
                                         >
                                             <option value="">Seleccionar líder</option>
                                             {lideresDisponibles.map(lider => (
                                                 <option key={lider.idPersona} value={lider.idPersona}>
                                                     {lider.nombreCompleto}
-                                                    {lider.codigoEstudiante && ` (${lider.codigoEstudiante})`}
+                                                    {lider.codigo && ` (${lider.codigo})`}
                                                 </option>
                                             ))}
                                         </select>
                                         <small className="form-help">
-                                            {lideresDisponibles.length === 0 && !currentGrupo
-                                                ? 'No se encontraron líderes disponibles con rol LÍDER.'
-                                                : `Se muestran ${lideresDisponibles.length} líder(es) disponible(s).`
+                                            {lideresDisponibles.length === 0 && formData.grupoGeneralId
+                                                ? 'No se encontraron líderes disponibles para este evento.'
+                                                : 'Seleccione un grupo general para ver los líderes.'
                                             }
                                         </small>
                                     </>

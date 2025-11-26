@@ -35,4 +35,17 @@ export const grupoPequenoService = {
         }
     },
 
+    getLideresDisponibles: async (eventoGeneralId, excludeGrupoId = null) => {
+        try {
+            let url = `/${ENDPOINT}/lideres-disponibles/${eventoGeneralId}`;
+            if (excludeGrupoId) {
+                url += `?excludeGrupoId=${excludeGrupoId}`;
+            }
+            const response = await api.get(url);
+            return response.data;
+        } catch (error) {
+            console.error(`Error al obtener líderes disponibles para el evento ${eventoGeneralId}:`, error);
+            throw error;
+        }
+    }
 };
