@@ -3,6 +3,7 @@ import { userService } from '../../services/userService';
 import { authService } from '../../services/authService';
 import { getRoleFromToken } from '../../utils/jwtHelper';
 import { TipoPersona } from '../../utils/constants.js';
+import { FaSearch } from 'react-icons/fa';
 
 const UserManagementPage = () => {
     const [users, setUsers] = useState([]);
@@ -22,11 +23,15 @@ const UserManagementPage = () => {
         nombreRol: '',
         tipoPersona: TipoPersona.INVITADO
     });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [programaFiltro, setProgramaFiltro] = useState('');
+    const [programas, setProgramas] = useState([]);
 
     const currentUserRole = getRoleFromToken(authService.getToken());
 
     useEffect(() => {
         fetchUsersAndRoles();
+        fetchProgramas();
     }, []);
 
     const fetchUsersAndRoles = async () => {
@@ -38,12 +43,22 @@ const UserManagementPage = () => {
                 userService.getAllRoles()
             ]);
             setUsers(usersData);
-            setRoles(rolesData);
+            setRoles(rolesData.filter(r => r.nombre === 'INTEGRANTE' || r.nombre === 'LIDER'));
         } catch (err) {
             console.error("Error fetching users or roles:", err);
             setError("Error al cargar usuarios o roles: " + (err.response?.data?.message || err.message || ""));
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchProgramas = async () => {
+        try {
+            // Asumiendo que tienes un servicio para obtener los programas
+            const programasData = await userService.getAllProgramas(); 
+            setProgramas(programasData);
+        } catch (error) {
+            console.error("Error fetching programas:", error);
         }
     };
 
@@ -180,6 +195,17 @@ const UserManagementPage = () => {
         });
     };
 
+    const filteredUsers = users.filter(user => {
+        const searchTermLower = searchTerm.toLowerCase();
+        const matchesSearch = (
+            user.user.toLowerCase().includes(searchTermLower) ||
+            user.nombreCompleto.toLowerCase().includes(searchTermLower) ||
+            user.documento.toLowerCase().includes(searchTermLower)
+        );
+        const matchesPrograma = !programaFiltro || user.programa === programaFiltro;
+        return matchesSearch && matchesPrograma;
+    });
+
     if (loading) {
         return (
             <div className="main-content">
@@ -226,7 +252,29 @@ const UserManagementPage = () => {
             <div className="card">
                 <div className="card-header">
                     <h2>Lista de Usuarios</h2>
-                    <div className="badge">{users.length} usuarios</div>
+                    <div className="badge">{filteredUsers.length} usuarios</div>
+                </div>
+                <div className="table-filters">
+                    <div className="search-box">
+                        <FaSearch className="search-icon" />
+                        <input
+                            type="text"
+                            placeholder="Buscar por usuario, nombre, documento..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="form-input"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <select
+                            value={programaFiltro}
+                            onChange={(e) => setProgramaFiltro(e.target.value)}
+                            className="form-select"
+                        >
+                            <option value="">Todos los programas</option>
+                            {programas.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                        </select>
+                    </div>
                 </div>
                 <div className="table-container">
                     <table className="data-table">
@@ -234,7 +282,9 @@ const UserManagementPage = () => {
                         <tr>
                             <th className="col-id">ID</th>
                             <th className="col-name">Usuario</th>
+                            <th className="col-name">Documento</th>
                             <th className="col-name">Nombre Completo</th>
+                            <th className="col-name">Programa</th>
                             <th className="col-type">Rol</th>
                             <th className="col-type">Tipo Persona</th>
                             <th className="col-type">Estado</th>
@@ -242,11 +292,13 @@ const UserManagementPage = () => {
                         </tr>
                         </thead>
                         <tbody>
-                        {users.map(user => (
+                        {filteredUsers.map(user => (
                             <tr key={user.idUsuario}>
                                 <td>{user.idUsuario}</td>
                                 <td>{user.user}</td>
+                                <td>{user.documento}</td>
                                 <td>{user.nombreCompleto}</td>
+                                <td>{user.programa}</td>
                                 <td>
                                     <span className="badge">{user.nombreRol}</span>
                                 </td>
@@ -272,9 +324,9 @@ const UserManagementPage = () => {
                         ))}
                         </tbody>
                     </table>
-                    {users.length === 0 && (
+                    {filteredUsers.length === 0 && (
                         <div className="empty-state">
-                            <p>No hay usuarios registrados</p>
+                            <p>No hay usuarios que coincidan con los filtros</p>
                         </div>
                     )}
                 </div>

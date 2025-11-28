@@ -11,7 +11,8 @@ import {
     FaUserFriends,
     FaCalendarAlt,
     FaExclamationTriangle,
-    FaSave
+    FaSave,
+    FaFilter
 } from 'react-icons/fa';
 import { crudService } from '../../services/crudService';
 import { formatDateTime } from '../../utils/helpers';
@@ -28,8 +29,9 @@ const GruposGeneralesPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentGrupo, setCurrentGrupo] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [error, setError] = useState(''); // Cambiado a string
-    const [success, setSuccess] = useState(''); // Añadido para mensajes de éxito
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
 
     // Estado del formulario
     const [formData, setFormData] = useState({
@@ -62,7 +64,7 @@ const GruposGeneralesPage = () => {
             const data = await grupoGeneralService.findAll();
             setGrupos(data);
             setFilteredGrupos(data);
-            setError(''); // Limpiar error
+            setError('');
         } catch (err) {
             console.error("Error loading grupos:", err);
             setError("Error al cargar grupos generales: " + (err.message || 'Verifique la conexión'));
@@ -99,8 +101,8 @@ const GruposGeneralesPage = () => {
 
             await loadGrupos();
             closeModal();
-            setError(''); // Limpiar error
-            setTimeout(() => setSuccess(''), 3000); // Limpiar éxito después de 3s
+            setError('');
+            setTimeout(() => setSuccess(''), 3000);
         } catch (error) {
             console.error("❌ Error saving grupo:", error);
             let errorMessage = "Error al guardar el grupo: ";
@@ -111,7 +113,7 @@ const GruposGeneralesPage = () => {
                     if (error.response.data.message) {
                         errorMessage += error.response.data.message;
                     } else {
-                        errorMessage += JSON.response.data.message || JSON.stringify(error.response.data);
+                        errorMessage += JSON.stringify(error.response.data);
                     }
                 } else {
                     errorMessage += error.response.statusText;
@@ -132,8 +134,8 @@ const GruposGeneralesPage = () => {
                 await grupoGeneralService.delete(id);
                 setSuccess('Grupo general eliminado exitosamente');
                 await loadGrupos();
-                setError(''); // Limpiar error
-                setTimeout(() => setSuccess(''), 3000); // Limpiar éxito después de 3s
+                setError('');
+                setTimeout(() => setSuccess(''), 3000);
             } catch (error) {
                 console.error("Error deleting grupo:", error);
                 setError("Error al eliminar el grupo: " + error.message);
@@ -149,7 +151,7 @@ const GruposGeneralesPage = () => {
             descripcion: ''
         });
         setIsModalOpen(true);
-        setError(''); // Limpiar error
+        setError('');
     };
 
     const openEditModal = (grupo) => {
@@ -160,13 +162,17 @@ const GruposGeneralesPage = () => {
             descripcion: grupo.descripcion || ''
         });
         setIsModalOpen(true);
-        setError(''); // Limpiar error
+        setError('');
     };
 
     const closeModal = () => {
         setCurrentGrupo(null);
         setIsModalOpen(false);
-        setError(''); // Limpiar error
+        setError('');
+    };
+
+    const clearFilters = () => {
+        setSearchTerm('');
     };
 
     const handleFormChange = (e) => {
@@ -206,23 +212,43 @@ const GruposGeneralesPage = () => {
         const displayDescription = showFullDescription ? description : description.substring(0, 120) + (shouldTruncate ? '...' : '');
 
         return (
-            <div className="card">
-                <div className="card-header">
-                    <FaUsers className="page-icon" /> {/* Icono principal del card */}
-                    <h3 className="card-title">{grupo.nombre}</h3>
+            <div className="card grupo-general-card">
+                <div className="card-header grupo-general-card-header">
+                    <div className="grupo-general-title-section">
+                        <div className="grupo-general-icon-container">
+                            <FaUsers className="grupo-general-icon" />
+                        </div>
+                        <div className="grupo-general-title-content">
+                            <h3 className="grupo-general-title">{grupo.nombre}</h3>
+                            <div className="grupo-general-meta">
+                                <span className="grupo-event">{grupo.eventoGeneralNombre || 'N/A'}</span>
+                                <span className="grupo-stats">
+                                    {grupo.cantidadGruposPequenos || 0} grupos • {grupo.totalParticipantes || 0} participantes
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
                 <div className="card-content">
-                    <p>{displayDescription}</p>
-                    {shouldTruncate && (
-                        <button className="btn-link" onClick={toggleDescription}>
-                            {showFullDescription ? ' ver menos' : ' ver más'}
-                        </button>
-                    )}
+                    <div className="description-container">
+                        <FaInfoCircle className="description-icon" />
+                        <div className="description-text">
+                            <p>{displayDescription}</p>
+                            {shouldTruncate && (
+                                <button className="btn-link" onClick={toggleDescription}>
+                                    {showFullDescription ? ' ver menos' : ' ver más'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="card-body-info">
                     <div className="info-item">
-                        <FaCalendarAlt className="info-icon" />
+                        <div className="info-icon-container">
+                            <FaCalendarAlt className="info-icon" />
+                        </div>
                         <div className="info-text">
                             <span className="info-label">Evento General</span>
                             <strong className="info-value">{grupo.eventoGeneralNombre || 'N/A'}</strong>
@@ -230,14 +256,18 @@ const GruposGeneralesPage = () => {
                         </div>
                     </div>
                     <div className="info-item">
-                        <FaUserFriends className="info-icon" />
+                        <div className="info-icon-container">
+                            <FaUserFriends className="info-icon" />
+                        </div>
                         <div className="info-text">
                             <span className="info-label">Grupos Pequeños</span>
                             <strong className="info-value">{grupo.cantidadGruposPequenos || 0}</strong>
                         </div>
                     </div>
                     <div className="info-item">
-                        <FaUsers className="info-icon" />
+                        <div className="info-icon-container">
+                            <FaUsers className="info-icon" />
+                        </div>
                         <div className="info-text">
                             <span className="info-label">Participantes</span>
                             <strong className="info-value">{grupo.totalParticipantes || 0}</strong>
@@ -245,9 +275,9 @@ const GruposGeneralesPage = () => {
                     </div>
                 </div>
 
-                <div className="modal-footer"> {/* Usamos modal-footer para los botones de acción */}
+                <div className="card-footer grupo-general-card-footer">
                     <button
-                        className="btn btn-secondary"
+                        className="btn btn-edit"
                         onClick={() => onEdit(grupo)}
                         title="Editar grupo general"
                     >
@@ -296,39 +326,64 @@ const GruposGeneralesPage = () => {
             {/* Header de la página */}
             <div className="page-header">
                 <div className="header-title">
-                    <FaUsers className="page-icon" />
-                    <div>
+                    <div className="header-icon-container">
+                        <FaUsers className="page-icon" />
+                    </div>
+                    <div className="header-text">
                         <h1>Gestión de Grupos Generales</h1>
                         <p>Organiza la estructura de grupos mayores dentro de un evento.</p>
                     </div>
                 </div>
                 <div className="header-actions">
-                    <div className="search-box">
-                        <FaSearch className="search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Buscar grupo general..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="form-input"
-                        />
-                    </div>
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`btn btn-secondary ${showFilters ? 'active' : ''}`}
+                    >
+                        <FaFilter /> Filtros
+                    </button>
                     <button onClick={openCreateModal} className="btn btn-primary">
                         <FaPlus /> Nuevo Grupo General
                     </button>
-                    <button onClick={loadGrupos} className="btn btn-secondary" title="Recargar">
+                    <button onClick={loadGrupos} className="btn btn-icon" title="Recargar">
                         <FaSync />
                     </button>
                 </div>
             </div>
 
+            {/* Panel de Filtros */}
+            {showFilters && (
+                <div className="filters-panel">
+                    <div className="filters-header">
+                        <h3>Filtros de Búsqueda</h3>
+                        <button onClick={clearFilters} className="btn btn-link">
+                            Limpiar filtros
+                        </button>
+                    </div>
+                    <div className="filters-content">
+                        <div className="search-box">
+                            <FaSearch className="search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Buscar grupo general..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="form-input"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Contenedor de Cards */}
             <div className="card-container">
-                <h2 className="section-title">Grupos Generales Activos ({filteredGrupos.length})</h2>
+                <div className="section-header">
+                    <h2 className="section-title">Grupos Generales Activos</h2>
+                    <span className="section-count">{filteredGrupos.length}</span>
+                </div>
 
                 {filteredGrupos.length === 0 ? (
                     <div className="empty-state-card">
-                        <FaUsers size={50} style={{ opacity: 0.5 }} />
+                        <FaUsers className="empty-icon" />
                         <p>{searchTerm ? 'No se encontraron grupos que coincidan con la búsqueda' : 'No hay grupos generales registrados.'}</p>
                         {!searchTerm && (
                             <button onClick={openCreateModal} className="btn btn-secondary">
@@ -350,13 +405,13 @@ const GruposGeneralesPage = () => {
                 )}
             </div>
 
-            {/* Modal para Crear/Editar Grupo General (se mantiene el estilo original) */}
+            {/* Modal para Crear/Editar Grupo General */}
             {isModalOpen && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
                             <h3>
-                                <FaUsers style={{ marginRight: '10px' }} />
+                                <FaUsers className="modal-icon" />
                                 {currentGrupo ? 'Editar Grupo General' : 'Crear Nuevo Grupo General'}
                             </h3>
                             <button type="button" onClick={closeModal} className="close-modal">

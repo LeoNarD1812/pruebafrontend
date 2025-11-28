@@ -109,12 +109,7 @@ const Sidebar = () => {
             <ul className="sidebar-menu">
                 {(menuData || []).map((group) => (
                     <li key={group.id} className="sidebar-item">
-                        {group.name === 'Dashboard' ? (
-                            <NavLink to="/dashboard/admin" end className={({ isActive }) => (isActive ? 'active' : '')}>
-                                {getIconComponent(group.icon)}
-                                <span>{group.name}</span>
-                            </NavLink>
-                        ) : group.items ? (
+                        {group.items && group.items.length > 0 ? (
                             <>
                                 <div onClick={() => toggleGroup(group.id)} className={`sidebar-group-header ${expandedGroup === group.id ? 'expanded' : ''}`}>
                                     <div>

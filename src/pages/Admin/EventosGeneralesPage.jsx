@@ -15,7 +15,8 @@ import {
     FaInfoCircle,
     FaUsers,
     FaExclamationTriangle,
-    FaSave
+    FaSave,
+    FaFilter
 } from 'react-icons/fa';
 import { eventoGeneralService } from '../../services/eventoGeneralService';
 import { crudService } from '../../services/crudService';
@@ -37,6 +38,7 @@ const EventosGeneralesPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filtroPrograma, setFiltroPrograma] = useState('');
     const [filtroPeriodo, setFiltroPeriodo] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
 
     useEffect(() => {
         loadInitialData();
@@ -75,7 +77,7 @@ const EventosGeneralesPage = () => {
             ]);
             setEventos(eventosData || []);
             setProgramas(programasData || []);
-            setPeriodos(periodosData || []); // CORREGIDO: Acceso directo a periodosData
+            setPeriodos(periodosData || []);
             setError('');
         } catch (err) {
             console.error('Error cargando datos iniciales:', err);
@@ -156,6 +158,12 @@ const EventosGeneralesPage = () => {
         setError('');
     };
 
+    const clearFilters = () => {
+        setSearchTerm('');
+        setFiltroPrograma('');
+        setFiltroPeriodo('');
+    };
+
     // --- Componente de Card para cada Evento General ---
     const EventoGeneralCard = ({ evento, onEdit, onDelete }) => {
         const [showFullDescription, setShowFullDescription] = useState(false);
@@ -174,12 +182,20 @@ const EventosGeneralesPage = () => {
             <div className="card event-card">
                 <div className="card-header event-card-header">
                     <div className="event-title-section">
-                        <FaCalendarAlt className="event-icon" />
-                        <h3 className="event-title">{evento.nombre}</h3>
+                        <div className="event-icon-container">
+                            <FaCalendarAlt className="event-icon" />
+                        </div>
+                        <div className="event-title-content">
+                            <h3 className="event-title">{evento.nombre}</h3>
+                            <div className="event-meta">
+                                <span className={`event-status ${estadoClass}`}>{evento.estado || 'ACTIVO'}</span>
+                                <span className="event-date">Creado: {formatDate(evento.createdAt)}</span>
+                            </div>
+                        </div>
                     </div>
                     <div className="card-actions">
                         <button
-                            className="btn btn-icon btn-secondary"
+                            className="btn btn-icon btn-edit"
                             onClick={() => onEdit(evento)}
                             title="Editar evento"
                         >
@@ -197,15 +213,17 @@ const EventosGeneralesPage = () => {
 
                 {evento.descripcion && (
                     <div className="card-content event-description-section">
-                        <p>
+                        <div className="description-container">
                             <FaInfoCircle className="description-icon" />
-                            {displayDescription}
-                            {shouldTruncate && (
-                                <button className="btn-link" onClick={toggleDescription}>
-                                    {showFullDescription ? ' ver menos' : ' ver más'}
-                                </button>
-                            )}
-                        </p>
+                            <div className="description-text">
+                                <p>{displayDescription}</p>
+                                {shouldTruncate && (
+                                    <button className="btn-link" onClick={toggleDescription}>
+                                        {showFullDescription ? ' ver menos' : ' ver más'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -213,14 +231,18 @@ const EventosGeneralesPage = () => {
                     {/* Fila 1: Lugar y Fechas */}
                     <div className="info-row">
                         <div className="info-item">
-                            <FaMapMarkerAlt className="info-icon" />
+                            <div className="info-icon-container">
+                                <FaMapMarkerAlt className="info-icon" />
+                            </div>
                             <div className="info-text">
                                 <span className="info-label">Lugar</span>
                                 <strong className="info-value">{evento.lugar || 'No especificado'}</strong>
                             </div>
                         </div>
                         <div className="info-item">
-                            <FaCalendar className="info-icon" />
+                            <div className="info-icon-container">
+                                <FaCalendar className="info-icon" />
+                            </div>
                             <div className="info-text">
                                 <span className="info-label">Fechas</span>
                                 <strong className="info-value">{formatDate(evento.fechaInicio)} - {formatDate(evento.fechaFin)}</strong>
@@ -231,35 +253,22 @@ const EventosGeneralesPage = () => {
                     {/* Fila 2: Período y Programa */}
                     <div className="info-row">
                         <div className="info-item">
-                            <FaClock className="info-icon" />
+                            <div className="info-icon-container">
+                                <FaClock className="info-icon" />
+                            </div>
                             <div className="info-text">
                                 <span className="info-label">Período</span>
                                 <strong className="info-value">{evento.periodoNombre || 'N/A'}</strong>
                             </div>
                         </div>
                         <div className="info-item">
-                            <FaGraduationCap className="info-icon" />
+                            <div className="info-icon-container">
+                                <FaGraduationCap className="info-icon" />
+                            </div>
                             <div className="info-text">
                                 <span className="info-label">Programa</span>
                                 <strong className="info-value">{evento.programaNombre || 'N/A'}</strong>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="card-footer event-card-footer">
-                    <div className="stat-item">
-                        <FaCalendar className="stat-icon" />
-                        <div className="stat-info">
-                            <span className="stat-value">{formatDate(evento.createdAt)}</span>
-                            <span className="stat-label">Creado</span>
-                        </div>
-                    </div>
-                    <div className="stat-item">
-                        <FaInfoCircle className={`stat-icon status ${estadoClass}`} />
-                        <div className="stat-info">
-                            <span className="stat-value">{evento.estado || 'ACTIVO'}</span>
-                            <span className="stat-label">Estado</span>
                         </div>
                     </div>
                 </div>
@@ -298,65 +307,96 @@ const EventosGeneralesPage = () => {
             {/* Header de la página */}
             <div className="page-header">
                 <div className="header-title">
-                    <FaCalendarAlt className="page-icon" />
-                    <div>
+                    <div className="header-icon-container">
+                        <FaCalendarAlt className="page-icon" />
+                    </div>
+                    <div className="header-text">
                         <h1>Gestión de Eventos Generales</h1>
                         <p>Administra los eventos principales de la institución.</p>
                     </div>
                 </div>
                 <div className="header-actions">
-                    <div className="search-box">
-                        <FaSearch className="search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Buscar evento..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="form-input"
-                        />
-                    </div>
-                    <div className="filter-group">
-                        <select
-                            className="form-select"
-                            value={filtroPeriodo}
-                            onChange={(e) => setFiltroPeriodo(e.target.value)}
-                        >
-                            <option value="">Todos los Períodos</option>
-                            {(periodos || []).map(p => (
-                                <option key={p.idPeriodo} value={p.idPeriodo}>
-                                    {p.nombre}
-                                </option>
-                            ))}
-                        </select>
-                        <select
-                            className="form-select"
-                            value={filtroPrograma}
-                            onChange={(e) => setFiltroPrograma(e.target.value)}
-                        >
-                            <option value="">Todos los Programas</option>
-                            {(programas || []).map(p => (
-                                <option key={p.idPrograma} value={p.idPrograma}>
-                                    {p.nombre}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`btn btn-secondary ${showFilters ? 'active' : ''}`}
+                    >
+                        <FaFilter /> Filtros
+                    </button>
                     <button onClick={openCreateModal} className="btn btn-primary">
                         <FaPlus /> Nuevo Evento
                     </button>
-                    <button onClick={loadInitialData} className="btn btn-secondary" title="Recargar">
+                    <button onClick={loadInitialData} className="btn btn-icon" title="Recargar">
                         <FaSync />
                     </button>
                 </div>
             </div>
 
+            {/* Panel de Filtros */}
+            {showFilters && (
+                <div className="filters-panel">
+                    <div className="filters-header">
+                        <h3>Filtros de Búsqueda</h3>
+                        <button onClick={clearFilters} className="btn btn-link">
+                            Limpiar filtros
+                        </button>
+                    </div>
+                    <div className="filters-content">
+                        <div className="search-box">
+                            <FaSearch className="search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Buscar evento..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="form-input"
+                            />
+                        </div>
+                        <div className="filter-group">
+                            <div className="filter-item">
+                                <label>Período</label>
+                                <select
+                                    className="form-select"
+                                    value={filtroPeriodo}
+                                    onChange={(e) => setFiltroPeriodo(e.target.value)}
+                                >
+                                    <option value="">Todos los Períodos</option>
+                                    {(periodos || []).map(p => (
+                                        <option key={p.idPeriodo} value={p.idPeriodo}>
+                                            {p.nombre}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-item">
+                                <label>Programa</label>
+                                <select
+                                    className="form-select"
+                                    value={filtroPrograma}
+                                    onChange={(e) => setFiltroPrograma(e.target.value)}
+                                >
+                                    <option value="">Todos los Programas</option>
+                                    {(programas || []).map(p => (
+                                        <option key={p.idPrograma} value={p.idPrograma}>
+                                            {p.nombre}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Contenedor de Cards */}
             <div className="card-container">
-                <h2 className="section-title">Eventos Activos ({filteredEventos.length})</h2>
+                <div className="section-header">
+                    <h2 className="section-title">Eventos Activos</h2>
+                    <span className="section-count">{filteredEventos.length}</span>
+                </div>
 
                 {filteredEventos.length === 0 ? (
                     <div className="empty-state-card">
-                        <FaCalendarAlt size={50} style={{ opacity: 0.5 }} />
+                        <FaCalendarAlt className="empty-icon" />
                         <p>{searchTerm || filtroPrograma || filtroPeriodo ? 'No se encontraron eventos que coincidan con la búsqueda o filtros.' : 'No hay eventos generales registrados.'}</p>
                         {!(searchTerm || filtroPrograma || filtroPeriodo) && (
                             <button onClick={openCreateModal} className="btn btn-secondary">
@@ -378,7 +418,7 @@ const EventosGeneralesPage = () => {
                 )}
             </div>
 
-            {/* Modal para Crear/Editar Evento General (se mantiene el estilo original) */}
+            {/* Modal para Crear/Editar Evento General */}
             {isModalOpen && (
                 <EventoGeneralForm
                     evento={currentEvento}
@@ -393,7 +433,7 @@ const EventosGeneralesPage = () => {
     );
 };
 
-// Se actualiza el componente de formulario
+// Componente de formulario actualizado con scroll mejorado
 const EventoGeneralForm = ({ evento, onClose, onSave, programas, periodos, loading }) => {
     const [formData, setFormData] = useState(evento);
     const [error, setError] = useState('');
@@ -429,125 +469,127 @@ const EventoGeneralForm = ({ evento, onClose, onSave, programas, periodos, loadi
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="modal-body">
-                    {error && <div className="alert alert-danger">{error}</div>}
+                <div className="modal-body-scrollable">
+                    <form onSubmit={handleSubmit} className="modal-form">
+                        {error && <div className="alert alert-danger">{error}</div>}
 
-                    <div className="form-group">
-                        <label htmlFor="nombre">Nombre del Evento *</label>
-                        <input
-                            type="text"
-                            id="nombre"
-                            name="nombre"
-                            value={formData.nombre}
-                            onChange={handleChange}
-                            required
-                            placeholder="Ej: Semana de Ingeniería 2024"
-                            maxLength="100"
-                            className="form-input"
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="lugar">Lugar</label>
-                        <input
-                            type="text"
-                            id="lugar"
-                            name="lugar"
-                            value={formData.lugar || ''}
-                            onChange={handleChange}
-                            placeholder="Ej: Auditorio Principal"
-                            maxLength="200"
-                            className="form-input"
-                        />
-                    </div>
-
-                    <div className="form-row">
                         <div className="form-group">
-                            <label htmlFor="fechaInicio">Fecha Inicio *</label>
+                            <label htmlFor="nombre">Nombre del Evento *</label>
                             <input
-                                type="date"
-                                id="fechaInicio"
-                                name="fechaInicio"
-                                value={formData.fechaInicio}
+                                type="text"
+                                id="nombre"
+                                name="nombre"
+                                value={formData.nombre}
                                 onChange={handleChange}
                                 required
+                                placeholder="Ej: Semana de Ingeniería 2024"
+                                maxLength="100"
                                 className="form-input"
                             />
                         </div>
+
                         <div className="form-group">
-                            <label htmlFor="fechaFin">Fecha Fin *</label>
+                            <label htmlFor="lugar">Lugar</label>
                             <input
-                                type="date"
-                                id="fechaFin"
-                                name="fechaFin"
-                                value={formData.fechaFin}
+                                type="text"
+                                id="lugar"
+                                name="lugar"
+                                value={formData.lugar || ''}
                                 onChange={handleChange}
-                                required
+                                placeholder="Ej: Auditorio Principal"
+                                maxLength="200"
                                 className="form-input"
                             />
                         </div>
-                    </div>
 
-                    <div className="form-group">
-                        <label htmlFor="periodoId">Período Académico *</label>
-                        <select
-                            id="periodoId"
-                            name="periodoId"
-                            value={formData.periodoId}
-                            onChange={handleChange}
-                            className="form-select"
-                            required
-                        >
-                            <option value="">Seleccione un período</option>
-                            {(periodos || []).map(p => (
-                                <option key={p.idPeriodo} value={p.idPeriodo}>
-                                    {p.nombre} ({p.estado})
-                                </option>
-                            ))}
-                        </select>
-                        <small className="form-help">Seleccione el período al que pertenece el evento.</small>
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="programaId">Programa de Estudio *</label>
-                        {loading ? (
-                            <div className="form-select-loading">
-                                <FaSpinner className="spinner" /> Cargando programas...
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="fechaInicio">Fecha Inicio *</label>
+                                <input
+                                    type="date"
+                                    id="fechaInicio"
+                                    name="fechaInicio"
+                                    value={formData.fechaInicio}
+                                    onChange={handleChange}
+                                    required
+                                    className="form-input"
+                                />
                             </div>
-                        ) : (
+                            <div className="form-group">
+                                <label htmlFor="fechaFin">Fecha Fin *</label>
+                                <input
+                                    type="date"
+                                    id="fechaFin"
+                                    name="fechaFin"
+                                    value={formData.fechaFin}
+                                    onChange={handleChange}
+                                    required
+                                    className="form-input"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="periodoId">Período Académico *</label>
                             <select
-                                id="programaId"
-                                name="programaId"
-                                value={formData.programaId}
+                                id="periodoId"
+                                name="periodoId"
+                                value={formData.periodoId}
                                 onChange={handleChange}
                                 className="form-select"
                                 required
                             >
-                                <option value="">Seleccione un programa</option>
-                                {(programas || []).map(p => (
-                                    <option key={p.idPrograma} value={p.idPrograma}>
-                                        {p.nombre}
+                                <option value="">Seleccione un período</option>
+                                {(periodos || []).map(p => (
+                                    <option key={p.idPeriodo} value={p.idPeriodo}>
+                                        {p.nombre} ({p.estado})
                                     </option>
                                 ))}
                             </select>
-                        )}
-                    </div>
+                            <small className="form-help">Seleccione el período al que pertenece el evento.</small>
+                        </div>
 
-                    <div className="form-group">
-                        <label htmlFor="descripcion">Descripción</label>
-                        <textarea
-                            id="descripcion"
-                            name="descripcion"
-                            value={formData.descripcion || ''}
-                            onChange={handleChange}
-                            placeholder="Descripción opcional del evento..."
-                            rows="3"
-                            maxLength="500"
-                            className="form-textarea"
-                        />
-                        <small className="form-help">Máximo 500 caracteres</small>
-                    </div>
-                </form>
+                        <div className="form-group">
+                            <label htmlFor="programaId">Programa de Estudio *</label>
+                            {loading ? (
+                                <div className="form-select-loading">
+                                    <FaSpinner className="spinner" /> Cargando programas...
+                                </div>
+                            ) : (
+                                <select
+                                    id="programaId"
+                                    name="programaId"
+                                    value={formData.programaId}
+                                    onChange={handleChange}
+                                    className="form-select"
+                                    required
+                                >
+                                    <option value="">Seleccione un programa</option>
+                                    {(programas || []).map(p => (
+                                        <option key={p.idPrograma} value={p.idPrograma}>
+                                            {p.nombre}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="descripcion">Descripción</label>
+                            <textarea
+                                id="descripcion"
+                                name="descripcion"
+                                value={formData.descripcion || ''}
+                                onChange={handleChange}
+                                placeholder="Descripción opcional del evento..."
+                                rows="3"
+                                maxLength="500"
+                                className="form-textarea"
+                            />
+                            <small className="form-help">Máximo 500 caracteres</small>
+                        </div>
+                    </form>
+                </div>
 
                 <div className="modal-footer">
                     <button type="submit" onClick={handleSubmit} className="btn btn-primary">

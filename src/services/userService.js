@@ -3,6 +3,7 @@ import { authService } from './authService'; // Para obtener el token
 
 const API_URL = 'http://localhost:8080/users'; // Asegúrate de que esta URL sea correcta para tu backend
 const API_ROLES_URL = 'http://localhost:8080/roles'; // URL para obtener roles
+const API_PROGRAMAS_URL = 'http://localhost:8080/programas'; // URL para obtener programas
 
 export const userService = {
     getAllUsers: async () => {
@@ -93,6 +94,21 @@ export const userService = {
             return response.data;
         } catch (error) {
             console.error('Error fetching all roles:', error);
+            throw error;
+        }
+    },
+
+    getAllProgramas: async () => {
+        try {
+            const token = authService.getToken();
+            const response = await axios.get(API_PROGRAMAS_URL, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching all programas:', error);
             throw error;
         }
     },

@@ -12,15 +12,14 @@ import {
     FaUserPlus,
     FaUserTie,
     FaExclamationTriangle,
-    FaCrown
+    FaCrown,
+    FaFilter
 } from 'react-icons/fa';
-// Los servicios dedicados ya están importados correctamente
 import { crudService } from '../../services/crudService';
 import { usuarioService } from '../../services/usuarioService';
 import { grupoParticipanteService } from '../../services/grupoParticipanteService';
 import { grupoPequenoService } from '../../services/grupoPequenoService';
 import { grupoGeneralService } from '../../services/grupoGeneralService';
-
 
 const GruposPequenosPage = () => {
     const [grupos, setGrupos] = useState([]);
@@ -31,6 +30,7 @@ const GruposPequenosPage = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchTermParticipantes, setSearchTermParticipantes] = useState('');
     const [formData, setFormData] = useState({
         nombre: '',
         grupoGeneralId: '',
@@ -43,11 +43,20 @@ const GruposPequenosPage = () => {
     const [gruposGenerales, setGruposGenerales] = useState([]);
     const [lideresDisponibles, setLideresDisponibles] = useState([]);
     const [loadingLideres, setLoadingLideres] = useState(false);
+    const [cicloFiltro, setCicloFiltro] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+    const ciclosDisponibles = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 
     useEffect(() => {
         loadGrupos();
         loadGruposGenerales();
     }, []);
+
+    useEffect(() => {
+        if (showParticipantesModal && currentGrupo) {
+            loadParticipantesDisponibles(currentGrupo.idGrupoPequeno, cicloFiltro);
+        }
+    }, [cicloFiltro, showParticipantesModal, currentGrupo]);
 
     const loadGrupos = async () => {
         try {
@@ -106,7 +115,7 @@ const GruposPequenosPage = () => {
         }
     };
 
-    const loadParticipantesDisponibles = async (grupoPequenoId) => {
+    const loadParticipantesDisponibles = async (grupoPequenoId, ciclo) => {
         try {
             const grupoCompleto = await grupoPequenoService.findById(grupoPequenoId);
             const eventoGeneralId = grupoCompleto.eventoGeneralId;
@@ -116,7 +125,7 @@ const GruposPequenosPage = () => {
                 return;
             }
 
-            const data = await grupoPequenoService.getParticipantesDisponibles(eventoGeneralId);
+            const data = await grupoPequenoService.getParticipantesDisponibles(eventoGeneralId, ciclo);
 
             const participantesActualesRaw = await grupoParticipanteService.findByGrupoPequeno(grupoPequenoId);
             const idsParticipantesActivosEnEsteGrupo = participantesActualesRaw
@@ -170,17 +179,15 @@ const GruposPequenosPage = () => {
             capacidadMaxima: grupo.capacidadMaxima,
             descripcion: grupo.descripcion || ''
         });
-        
+
         const grupoGeneral = gruposGenerales.find(g => g.idGrupoGeneral === grupo.grupoGeneralId);
         if (grupoGeneral) {
             await loadLideresDisponibles(grupoGeneral.eventoGeneralId, grupo.idGrupoPequeno);
         }
 
-        // Asegurarse de que el líder actual esté en la lista
         setLideresDisponibles(prevLideres => {
             const liderActualExiste = prevLideres.some(l => l.idPersona === grupo.liderId);
             if (!liderActualExiste && grupo.liderId) {
-                // Si el líder actual no está en la lista, lo añadimos manualmente
                 return [
                     { idPersona: grupo.liderId, nombreCompleto: grupo.liderNombre, codigo: grupo.liderCodigo },
                     ...prevLideres
@@ -195,9 +202,10 @@ const GruposPequenosPage = () => {
 
     const openGestionParticipantesModal = async (grupo) => {
         setCurrentGrupo(grupo);
+        setCicloFiltro('');
         try {
             await loadParticipantesActuales(grupo.idGrupoPequeno);
-            await loadParticipantesDisponibles(grupo.idGrupoPequeno);
+            await loadParticipantesDisponibles(grupo.idGrupoPequeno, '');
             setShowParticipantesModal(true);
             setError('');
         } catch (error) {
@@ -258,7 +266,7 @@ const GruposPequenosPage = () => {
 
             setSuccess('Participante agregado exitosamente');
             await loadParticipantesActuales(currentGrupo.idGrupoPequeno);
-            await loadParticipantesDisponibles(currentGrupo.idGrupoPequeno);
+            await loadParticipantesDisponibles(currentGrupo.idGrupoPequeno, cicloFiltro);
             loadGrupos();
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
@@ -273,7 +281,7 @@ const GruposPequenosPage = () => {
             await grupoParticipanteService.removerParticipante(participanteId);
             setSuccess('Participante removido exitosamente');
             await loadParticipantesActuales(currentGrupo.idGrupoPequeno);
-            await loadParticipantesDisponibles(currentGrupo.idGrupoPequeno);
+            await loadParticipantesDisponibles(currentGrupo.idGrupoPequeno, cicloFiltro);
             loadGrupos();
             setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
@@ -293,23 +301,16 @@ const GruposPequenosPage = () => {
         }
     };
 
+    const clearFilters = () => {
+        setSearchTerm('');
+    };
+
     const filteredGrupos = grupos.filter(grupo =>
         grupo.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         grupo.grupoGeneralNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         grupo.liderNombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         grupo.liderCodigo?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-
-    if (loading) {
-        return (
-            <div className="page-container">
-                <div className="loading-container">
-                    <FaSpinner className="spinner" />
-                    <p>Cargando grupos pequeños...</p>
-                </div>
-            </div>
-        );
-    }
 
     // --- Componente de Card para cada Grupo ---
     const GrupoCard = ({ grupo }) => {
@@ -318,34 +319,50 @@ const GruposPequenosPage = () => {
         const capacityColor = isFull ? 'var(--error-color)' : capacityPercentage >= 80 ? 'var(--warning-color)' : 'var(--success-color)';
 
         return (
-            <div className="card">
-                <div className="card-header">
-                    <FaUserFriends className="page-icon" />
-                    <h3 className="card-title">{grupo.nombre}</h3>
+            <div className="card grupo-card">
+                <div className="card-header grupo-card-header">
+                    <div className="grupo-title-section">
+                        <div className="grupo-icon-container">
+                            <FaUserFriends className="grupo-icon" />
+                        </div>
+                        <div className="grupo-title-content">
+                            <h3 className="grupo-title">{grupo.nombre}</h3>
+                            <div className="grupo-meta">
+                                <span className="grupo-general">{grupo.grupoGeneralNombre}</span>
+                                <span className={`capacity-status ${isFull ? 'full' : 'available'}`}>
+                                    {isFull ? 'Completo' : 'Disponible'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
                 <div className="card-content">
-                    <p>{grupo.descripcion}</p>
-                    <span className="info-value">{grupo.grupoGeneralNombre}</span>
+                    <p className="grupo-description">{grupo.descripcion || 'Sin descripción'}</p>
                 </div>
 
                 <div className="card-body-info">
                     <div className="info-item">
-                        <FaCrown className="info-icon lider-icon-card" />
+                        <div className="info-icon-container lider">
+                            <FaCrown className="info-icon" />
+                        </div>
                         <div className="info-text">
-                            <span className="info-label">Líder</span>
+                            <span className="info-label">Líder del Grupo</span>
                             <strong className="info-value">{grupo.liderNombre}</strong>
                             <small className="info-subvalue">{grupo.liderCodigo}</small>
                         </div>
                     </div>
 
                     <div className="info-item">
-                        <FaUsersCog className="info-icon" style={{ color: capacityColor }} />
+                        <div className="info-icon-container">
+                            <FaUsersCog className="info-icon" style={{ color: capacityColor }} />
+                        </div>
                         <div className="info-text">
                             <span className="info-label">Participantes</span>
                             <strong className="info-value" style={{ color: capacityColor }}>
                                 {grupo.participantesActuales} / {grupo.capacidadMaxima}
                             </strong>
-                            <div className="capacity-bar-small">
+                            <div className="capacity-bar">
                                 <div
                                     className="capacity-fill"
                                     style={{ width: `${capacityPercentage}%`, backgroundColor: capacityColor }}
@@ -355,9 +372,9 @@ const GruposPequenosPage = () => {
                     </div>
                 </div>
 
-                <div className="modal-footer">
+                <div className="card-footer grupo-card-footer">
                     <button
-                        className="btn btn-secondary"
+                        className="btn btn-edit"
                         onClick={() => openEditModal(grupo)}
                         title="Editar grupo"
                     >
@@ -383,6 +400,30 @@ const GruposPequenosPage = () => {
     };
     // --- Fin Componente de Card ---
 
+    // Filtrar participantes
+    const filteredParticipantesActuales = participantesActuales.filter(participante =>
+        participante.personaNombre?.toLowerCase().includes(searchTermParticipantes.toLowerCase()) ||
+        participante.personaCodigo?.toLowerCase().includes(searchTermParticipantes.toLowerCase())
+    );
+
+    const filteredParticipantesDisponibles = participantesDisponibles.filter(participante =>
+        participante.nombreCompleto?.toLowerCase().includes(searchTermParticipantes.toLowerCase()) ||
+        participante.codigoEstudiante?.toLowerCase().includes(searchTermParticipantes.toLowerCase()) ||
+        participante.documento?.toLowerCase().includes(searchTermParticipantes.toLowerCase()) ||
+        participante.correo?.toLowerCase().includes(searchTermParticipantes.toLowerCase())
+    );
+
+    if (loading) {
+        return (
+            <div className="page-container">
+                <div className="loading-container">
+                    <FaSpinner className="spinner" />
+                    <p>Cargando grupos pequeños...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="page-container">
             {/* Alertas */}
@@ -402,36 +443,61 @@ const GruposPequenosPage = () => {
             {/* Header */}
             <div className="page-header">
                 <div className="header-title">
-                    <FaUserFriends className="page-icon" />
-                    <div>
+                    <div className="header-icon-container">
+                        <FaUserFriends className="page-icon" />
+                    </div>
+                    <div className="header-text">
                         <h1>Gestión de Grupos Pequeños</h1>
                         <p>Visualiza, crea y administra los grupos de crecimiento.</p>
                     </div>
                 </div>
                 <div className="header-actions">
-                    <div className="search-box">
-                        <FaSearch className="search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Buscar grupo, líder o general..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="form-input"
-                        />
-                    </div>
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`btn btn-secondary ${showFilters ? 'active' : ''}`}
+                    >
+                        <FaFilter /> Filtros
+                    </button>
                     <button onClick={openCreateModal} className="btn btn-primary">
                         <FaPlus /> Nuevo Grupo
                     </button>
                 </div>
             </div>
 
+            {/* Panel de Filtros */}
+            {showFilters && (
+                <div className="filters-panel">
+                    <div className="filters-header">
+                        <h3>Filtros de Búsqueda</h3>
+                        <button onClick={clearFilters} className="btn btn-link">
+                            Limpiar filtros
+                        </button>
+                    </div>
+                    <div className="filters-content">
+                        <div className="search-box">
+                            <FaSearch className="search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Buscar grupo, líder o general..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="form-input"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Contenedor de Cards */}
             <div className="card-container">
-                <h2 className="section-title">Grupos Activos ({filteredGrupos.length})</h2>
+                <div className="section-header">
+                    <h2 className="section-title">Grupos Activos</h2>
+                    <span className="section-count">{filteredGrupos.length}</span>
+                </div>
 
                 {filteredGrupos.length === 0 ? (
                     <div className="empty-state-card">
-                        <FaUserFriends size={50} style={{ opacity: 0.5 }} />
+                        <FaUserFriends className="empty-icon" />
                         <p>{searchTerm ? 'No se encontraron grupos que coincidan con la búsqueda' : 'No hay grupos pequeños registrados.'}</p>
                         <button onClick={openCreateModal} className="btn btn-secondary">
                             <FaPlus /> Crear el primer grupo
@@ -445,16 +511,14 @@ const GruposPequenosPage = () => {
                     </div>
                 )}
             </div>
-            {/* Fin Contenedor de Cards */}
 
-
-            {/* Modal para Crear/Editar Grupo (Se mantiene el estilo original) */}
+            {/* Modal para Crear/Editar Grupo */}
             {showModal && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
                             <h3>
-                                <FaCrown style={{ marginRight: '10px', color: '#f39c12' }} />
+                                <FaCrown className="modal-icon" />
                                 {currentGrupo ? 'Editar Grupo' : 'Crear Nuevo Grupo'}
                             </h3>
                             <button onClick={() => setShowModal(false)} className="close-modal">
@@ -566,13 +630,13 @@ const GruposPequenosPage = () => {
                 </div>
             )}
 
-            {/* Modal para Gestión de Participantes (Se mantiene el estilo original) */}
+            {/* Modal para Gestión de Participantes */}
             {showParticipantesModal && currentGrupo && (
                 <div className="modal-overlay">
                     <div className="modal-content large-modal">
                         <div className="modal-header">
                             <h3>
-                                <FaUsersCog /> Gestión de Participantes - {currentGrupo.nombre}
+                                <FaUsersCog className="modal-icon" /> Gestión de Participantes - {currentGrupo.nombre}
                             </h3>
                             <button onClick={() => setShowParticipantesModal(false)} className="close-modal">
                                 <FaTimes />
@@ -580,68 +644,125 @@ const GruposPequenosPage = () => {
                         </div>
 
                         <div className="modal-body">
-                            <div className="capacity-alert">
-                                <strong>Capacidad: {participantesActuales.length} / {currentGrupo.capacidadMaxima}</strong>
-                                {participantesActuales.length >= currentGrupo.capacidadMaxima && (
-                                    <span className="alert-full">¡Capacidad máxima alcanzada!</span>
-                                )}
+                            {/* Header con información de capacidad y filtro */}
+                            <div className="participantes-header">
+                                <div className="capacity-info">
+                                    <strong>Capacidad: {participantesActuales.length} / {currentGrupo.capacidadMaxima}</strong>
+                                    {participantesActuales.length >= currentGrupo.capacidadMaxima && (
+                                        <span className="capacity-full-badge">¡Capacidad máxima!</span>
+                                    )}
+                                </div>
+
+                                <div className="filter-section">
+                                    <div className="search-box-small">
+                                        <FaSearch className="search-icon" />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar participante..."
+                                            value={searchTermParticipantes}
+                                            onChange={(e) => setSearchTermParticipantes(e.target.value)}
+                                            className="form-input search-input-small"
+                                        />
+                                    </div>
+                                    <div className="filter-controls">
+                                        <label>Filtrar por Ciclo:</label>
+                                        <select
+                                            value={cicloFiltro}
+                                            onChange={(e) => setCicloFiltro(e.target.value)}
+                                            className="form-select filter-select"
+                                        >
+                                            <option value="">Todos los ciclos</option>
+                                            {ciclosDisponibles.map(ciclo => (
+                                                <option key={ciclo} value={ciclo}>Ciclo {ciclo}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="participantes-grid">
-                                <div className="participantes-section">
-                                    <h4>Participantes Actuales ({participantesActuales.length})</h4>
-                                    <div className="participantes-list">
-                                        {participantesActuales.map(participante => (
-                                            <div key={participante.idGrupoParticipante} className="participante-item">
-                                                <div className="participante-info">
-                                                    <strong>{participante.personaNombre}</strong>
-                                                    <span>{participante.personaCodigo}</span>
-                                                    <small>Inscrito: {new Date(participante.fechaInscripcion).toLocaleDateString()}</small>
-                                                </div>
-                                                <button
-                                                    onClick={() => removerParticipante(participante.idGrupoParticipante)}
-                                                    className="btn btn-danger btn-sm"
-                                                    title="Remover participante"
-                                                >
-                                                    <FaTrashAlt />
-                                                </button>
+                            {/* Grid de dos columnas */}
+                            <div className="participantes-grid-improved">
+                                {/* Columna de Participantes Actuales */}
+                                <div className="participantes-column">
+                                    <div className="column-header">
+                                        <h4>Participantes Actuales</h4>
+                                        <span className="participant-count">{filteredParticipantesActuales.length}</span>
+                                    </div>
+                                    <div className="participantes-list-container">
+                                        {filteredParticipantesActuales.length === 0 ? (
+                                            <div className="empty-list">
+                                                <FaUserFriends className="empty-icon" />
+                                                <p>{searchTermParticipantes ? 'No se encontraron participantes que coincidan con la búsqueda' : 'No hay participantes en este grupo'}</p>
                                             </div>
-                                        ))}
-                                        {participantesActuales.length === 0 && (
-                                            <div className="empty-state">
-                                                No hay participantes en este grupo
+                                        ) : (
+                                            <div className="participantes-scroll-list">
+                                                {filteredParticipantesActuales.map(participante => (
+                                                    <div key={participante.idGrupoParticipante} className="participante-card">
+                                                        <div className="participante-avatar">
+                                                            <FaUserFriends />
+                                                        </div>
+                                                        <div className="participante-details">
+                                                            <strong className="participante-name">{participante.personaNombre}</strong>
+                                                            <span className="participante-code">{participante.personaCodigo}</span>
+                                                            <small className="participante-date">
+                                                                Inscrito: {new Date(participante.fechaInscripcion).toLocaleDateString()}
+                                                            </small>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => removerParticipante(participante.idGrupoParticipante)}
+                                                            className="btn-remove"
+                                                            title="Remover participante"
+                                                        >
+                                                            <FaTrashAlt />
+                                                        </button>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="participantes-section">
-                                    <h4>Participantes Disponibles ({participantesDisponibles.length})</h4>
-                                    <div className="participantes-list">
-                                        {participantesDisponibles.map(participante => (
-                                            <div key={participante.personaId} className="participante-item">
-                                                <div className="participante-info">
-                                                    <strong>{participante.nombreCompleto}</strong>
-                                                    <span>{participante.codigoEstudiante} - {participante.documento}</span>
-                                                    <small>{participante.correo}</small>
-                                                </div>
-                                                <button
-                                                    onClick={() => agregarParticipante(participante.personaId)}
-                                                    className="btn btn-success btn-sm"
-                                                    disabled={participantesActuales.length >= currentGrupo.capacidadMaxima}
-                                                    title={
-                                                        participantesActuales.length >= currentGrupo.capacidadMaxima
-                                                            ? 'Capacidad máxima alcanzada'
-                                                            : 'Agregar al grupo'
-                                                    }
-                                                >
-                                                    <FaUserPlus />
-                                                </button>
+                                {/* Columna de Participantes Disponibles */}
+                                <div className="participantes-column">
+                                    <div className="column-header">
+                                        <h4>Participantes Disponibles</h4>
+                                        <span className="participant-count">{filteredParticipantesDisponibles.length}</span>
+                                    </div>
+                                    <div className="participantes-list-container">
+                                        {filteredParticipantesDisponibles.length === 0 ? (
+                                            <div className="empty-list">
+                                                <FaUserFriends className="empty-icon" />
+                                                <p>{searchTermParticipantes ? 'No se encontraron participantes que coincidan con la búsqueda' : 'No hay participantes disponibles'}</p>
+                                                <small>Prueba con otro ciclo o verifica los filtros</small>
                                             </div>
-                                        ))}
-                                        {participantesDisponibles.length === 0 && (
-                                            <div className="empty-state">
-                                                No hay participantes disponibles que cumplan el perfil y no estén ya inscritos en un grupo activo de este evento.
+                                        ) : (
+                                            <div className="participantes-scroll-list">
+                                                {filteredParticipantesDisponibles.map(participante => (
+                                                    <div key={participante.personaId} className="participante-card">
+                                                        <div className="participante-avatar">
+                                                            <FaUserPlus />
+                                                        </div>
+                                                        <div className="participante-details">
+                                                            <strong className="participante-name">{participante.nombreCompleto}</strong>
+                                                            <span className="participante-code">
+                                                                {participante.codigoEstudiante} - {participante.documento}
+                                                            </span>
+                                                            <small className="participante-email">{participante.correo}</small>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => agregarParticipante(participante.personaId)}
+                                                            className="btn-add"
+                                                            disabled={participantesActuales.length >= currentGrupo.capacidadMaxima}
+                                                            title={
+                                                                participantesActuales.length >= currentGrupo.capacidadMaxima
+                                                                    ? 'Capacidad máxima alcanzada'
+                                                                    : 'Agregar al grupo'
+                                                            }
+                                                        >
+                                                            <FaUserPlus />
+                                                        </button>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
@@ -659,7 +780,6 @@ const GruposPequenosPage = () => {
             )}
         </div>
     );
-
 };
 
 export default GruposPequenosPage;

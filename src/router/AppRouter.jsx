@@ -29,6 +29,7 @@ import EscanearQRPage from '../pages/Integrante/EscanearQRPage';
 import MisGruposPage from '../pages/Lider/MisGruposPage';
 import VerAsistenciasPage from '../pages/Lider/VerAsistenciasPage';
 import MisAsistenciasPage from '../pages/lider/MisAsistenciasPage';
+import UserCalendarPage from '../pages/UserCalendarPage'; // Importar la nueva página
 
 // Importar la nueva página de edición de perfil
 import ProfileEditPage from '../pages/User/ProfileEditPage';
@@ -152,6 +153,7 @@ const AppRouter = () => {
                     <Route path="/asistencias/persona" element={<MisAsistenciasPage />} />
                     <Route path="/asistencias/registrar" element={<RegistrarAsistenciaPage />} />
                     <Route path="/asistencias/escanear" element={<EscanearQRPage />} />
+                    <Route path="/calendario" element={<UserCalendarPage />} /> {/* NUEVA RUTA */}
 
                     {/* NUEVA RUTA: Editar Perfil */}
                     <Route path="/personas/my-profile" element={<ProfileEditPage />} />

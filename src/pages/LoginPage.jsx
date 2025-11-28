@@ -17,6 +17,19 @@ const LoginPage = () => {
         authService.logout();
     }, []);
 
+    const getDashboardPathByRole = (role) => {
+        switch (role) {
+            case 'ADMIN':
+                return '/admin/dashboard';
+            case 'LIDER':
+                return '/lider/dashboard';
+            case 'INTEGRANTE':
+                return '/integrante/dashboard';
+            default:
+                return '/dashboard'; // O una ruta por defecto/error
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -28,8 +41,9 @@ const LoginPage = () => {
         setLoading(true);
 
         try {
-            await login(username, password);
-            navigate('/dashboard');
+            const userData = await login(username, password);
+            const path = getDashboardPathByRole(userData.nombreRol);
+            navigate(path);
         } catch (err) {
             setError('Credenciales incorrectas. Por favor, intente de nuevo.');
             console.error('Error de login:', err);

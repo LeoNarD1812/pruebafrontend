@@ -3,10 +3,9 @@ import { FaCalendarDay, FaPlus, FaEdit, FaTrashAlt, FaSearch, FaTimes, FaSync, F
 import { crudService } from '../../services/crudService';
 import { formatDate } from '../../utils/helpers';
 import api from '../../api/axiosConfig';
-import { eventoEspecificoService } from '../../services/eventoEspecificoService'; // Asegúrate de usar el servicio correcto para crearRecurrencia
+import { eventoEspecificoService } from '../../services/eventoEspecificoService';
 
 // Inicializa los servicios
-// const eventoEspecificoService = crudService('eventos-especificos'); // Usaremos el que tiene los métodos de recurrencia
 const eventoGeneralService = crudService('eventos-generales');
 
 // Función formatTime si no existe en helpers
@@ -19,6 +18,22 @@ const formatTime = (timeString) => {
     return timeString;
 };
 
+// Función para generar colores únicos por evento general
+const generateEventColors = (eventosGenerales) => {
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+        '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
+        '#F9E79F', '#ABEBC6', '#AED6F1', '#FAD7A0', '#E8DAEF'
+    ];
+
+    const eventColors = {};
+    eventosGenerales.forEach((evento, index) => {
+        eventColors[evento.idEventoGeneral] = colors[index % colors.length];
+    });
+    return eventColors;
+};
+
 const SesionesPage = () => {
     const [sesiones, setSesiones] = useState([]);
     const [filteredSesiones, setFilteredSesiones] = useState([]);
@@ -28,10 +43,11 @@ const SesionesPage = () => {
     const [eventosGenerales, setEventosGenerales] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [error, setError] = useState(null);
-    const [viewMode, setViewMode] = useState('calendar'); // 'calendar' o 'list'
+    const [viewMode, setViewMode] = useState('calendar');
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [eventColors, setEventColors] = useState({});
 
-    // Estado del formulario (Añadiendo lugar y descripcion, y valor por defecto de tolerancia)
+    // Estado del formulario
     const [isRecurrence, setIsRecurrence] = useState(true);
     const [formData, setFormData] = useState({
         idEventoGeneral: '',
@@ -39,12 +55,12 @@ const SesionesPage = () => {
         fecha: '',
         horaInicio: '',
         horaFin: '',
-        toleranciaMinutos: 15, // Valor por defecto
+        toleranciaMinutos: 15,
         fechaInicioRecurrencia: '',
         fechaFinRecurrencia: '',
         diasSemana: [1, 3, 5],
-        lugar: '', // Nuevo
-        descripcion: '', // Nuevo
+        lugar: '',
+        descripcion: '',
     });
 
     const daysOfWeek = [
@@ -54,7 +70,7 @@ const SesionesPage = () => {
         { name: 'Jue', value: 4 },
         { name: 'Vie', value: 5 },
         { name: 'Sáb', value: 6 },
-        { name: 'Dom', value: 7 }, // Corregido: 7 para Domingo (1=Mon a 7=Sun en Java DayOfWeek)
+        { name: 'Dom', value: 7 },
     ];
 
     useEffect(() => {
@@ -75,6 +91,13 @@ const SesionesPage = () => {
         }
     }, [searchTerm, sesiones]);
 
+    // Actualizar colores cuando se carguen eventos generales
+    useEffect(() => {
+        if (eventosGenerales.length > 0) {
+            setEventColors(generateEventColors(eventosGenerales));
+        }
+    }, [eventosGenerales]);
+
     // Cargar automáticamente las fechas cuando se selecciona un evento general
     useEffect(() => {
         if (formData.idEventoGeneral && eventosGenerales.length > 0) {
@@ -87,7 +110,6 @@ const SesionesPage = () => {
                     ...prev,
                     fechaInicioRecurrencia: eventoGeneral.fechaInicio || '',
                     fechaFinRecurrencia: eventoGeneral.fechaFin || '',
-                    // El lugar y descripción se hereda del evento general si no se especifica, pero lo precargamos si existe.
                     lugar: prev.lugar || eventoGeneral.lugar || '',
                     descripcion: prev.descripcion || eventoGeneral.descripcion || ''
                 }));
@@ -98,7 +120,7 @@ const SesionesPage = () => {
     const loadSesiones = async () => {
         try {
             setLoading(true);
-            const data = await crudService('eventos-especificos').findAll(); // Uso crudService para findAll
+            const data = await crudService('eventos-especificos').findAll();
             console.log('Sesiones cargadas:', data);
             setSesiones(data);
             setFilteredSesiones(data);
@@ -137,7 +159,7 @@ const SesionesPage = () => {
                     toleranciaMinutos: sesionData.toleranciaMinutos ? parseInt(sesionData.toleranciaMinutos, 10) : 15,
                     estado: sesionData.estado || 'PROGRAMADO',
                 };
-                await crudService('eventos-especificos').update(currentSesion.idEventoEspecifico, payload);
+                await eventoEspecificoService.update(currentSesion.idEventoEspecifico, payload);
             } else {
                 // Lógica de Creación (Única o Recurrente)
                 if (isRecurrence) {
@@ -150,7 +172,7 @@ const SesionesPage = () => {
                         horaFin: sesionData.horaFin,
                         toleranciaMinutos: sesionData.toleranciaMinutos ? parseInt(sesionData.toleranciaMinutos, 10) : 15,
                         diasSemana: sesionData.diasSemana.map(d => parseInt(d, 10)),
-                        lugar: sesionData.lugar || undefined, // undefined para que el backend herede si es nulo/vacío
+                        lugar: sesionData.lugar || undefined,
                         descripcion: sesionData.descripcion || undefined,
                     };
                     await eventoEspecificoService.crearRecurrencia(payload);
@@ -165,7 +187,7 @@ const SesionesPage = () => {
                         lugar: sesionData.lugar || undefined,
                         descripcion: sesionData.descripcion || undefined,
                     };
-                    await eventoEspecificoService.crearEvento(payload);
+                    await eventoEspecificoService.save(payload);
                 }
             }
 
@@ -198,7 +220,7 @@ const SesionesPage = () => {
     const handleDelete = async (id) => {
         if (window.confirm('¿Está seguro de eliminar esta sesión? Esta acción es irreversible.')) {
             try {
-                await crudService('eventos-especificos').delete(id);
+                await eventoEspecificoService.delete(id);
                 await loadSesiones();
                 setError(null);
             } catch (error) {
@@ -317,7 +339,7 @@ const SesionesPage = () => {
         return <span className={`badge ${config.class}`}>{config.label}</span>;
     };
 
-    // Funciones para el calendario - CORREGIDO DÍAS
+    // Funciones para el calendario
     const getDaysInMonth = (date) => {
         const year = date.getFullYear();
         const month = date.getMonth();
@@ -325,10 +347,10 @@ const SesionesPage = () => {
         const lastDay = new Date(year, month + 1, 0);
 
         const days = [];
-        const startingDay = firstDay.getDay(); // 0=Dom, 1=Lun
+        const startingDay = firstDay.getDay();
 
         // Ajuste para que la semana empiece en lunes (0=Dom, 1=Lun...)
-        const adjustedStart = startingDay === 0 ? 6 : startingDay - 1; // 0 para lunes, 6 para domingo
+        const adjustedStart = startingDay === 0 ? 6 : startingDay - 1;
 
         // Días del mes anterior
         const prevMonthLastDay = new Date(year, month, 0).getDate();
@@ -429,20 +451,27 @@ const SesionesPage = () => {
                                     {day.date.getDate()}
                                 </div>
                                 <div className="calendar-sessions">
-                                    {day.sessions.slice(0, 3).map((sesion, idx) => (
-                                        <div
-                                            key={`${sesion.idEventoEspecifico}-${idx}`}
-                                            className="calendar-session-item"
-                                            onClick={() => openEditModal(sesion)}
-                                        >
-                                            <div className="session-time">
-                                                {formatTime(sesion.horaInicio)}
+                                    {day.sessions.slice(0, 3).map((sesion, idx) => {
+                                        const eventColor = eventColors[sesion.eventoGeneralId] || '#667eea';
+                                        return (
+                                            <div
+                                                key={`${sesion.idEventoEspecifico}-${idx}`}
+                                                className="calendar-session-item"
+                                                onClick={() => openEditModal(sesion)}
+                                                style={{
+                                                    backgroundColor: eventColor,
+                                                    borderLeft: `3px solid ${eventColor}`
+                                                }}
+                                            >
+                                                <div className="session-time">
+                                                    {formatTime(sesion.horaInicio)}
+                                                </div>
+                                                <div className="session-title">
+                                                    {sesion.nombreSesion}
+                                                </div>
                                             </div>
-                                            <div className="session-title">
-                                                {sesion.nombreSesion}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {day.sessions.length > 3 && (
                                         <div className="calendar-more-sessions">
                                             +{day.sessions.length - 3} más
@@ -453,6 +482,29 @@ const SesionesPage = () => {
                         );
                     })}
                 </div>
+
+                {/* Leyenda de colores */}
+                {viewMode === 'calendar' && eventosGenerales.length > 0 && (
+                    <div className="calendar-legend">
+                        <h4>Leyenda de Eventos:</h4>
+                        <div className="legend-items">
+                            {eventosGenerales.slice(0, 8).map(evento => (
+                                <div key={evento.idEventoGeneral} className="legend-item">
+                                    <span
+                                        className="legend-color"
+                                        style={{ backgroundColor: eventColors[evento.idEventoGeneral] }}
+                                    ></span>
+                                    <span className="legend-label">{evento.nombre}</span>
+                                </div>
+                            ))}
+                            {eventosGenerales.length > 8 && (
+                                <div className="legend-item">
+                                    <span className="legend-more">+{eventosGenerales.length - 8} más</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -535,195 +587,195 @@ const SesionesPage = () => {
                     </button>
                 </div>
 
-                <div className="modal-body">
-                    {error && <div className="alert alert-danger">{error}</div>}
+                <div className="modal-body-scrollable">
+                    <div className="modal-form">
+                        {error && <div className="alert alert-danger">{error}</div>}
 
-                    <div className="form-group">
-                        <label htmlFor="idEventoGeneral">Evento General *</label>
-                        <select
-                            id="idEventoGeneral"
-                            name="idEventoGeneral"
-                            value={formData.idEventoGeneral}
-                            onChange={handleFormChange}
-                            required
-                            disabled={!!currentSesion}
-                            className="form-select"
-                        >
-                            <option value="">Seleccione un evento</option>
-                            {eventosGenerales.map(evento => (
-                                <option key={evento.idEventoGeneral} value={evento.idEventoGeneral}>
-                                    {evento.nombre} ({formatDate(evento.fechaInicio)} - {formatDate(evento.fechaFin)})
-                                    {evento.periodoNombre && ` - Período: ${evento.periodoNombre}`}
-                                </option>
-                            ))}
-                        </select>
-                        <small className="form-help">Seleccionar el evento principal.</small>
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="nombreSesion">Nombre de la Sesión *</label>
-                        <input
-                            type="text"
-                            id="nombreSesion"
-                            name="nombreSesion"
-                            value={formData.nombreSesion}
-                            onChange={handleFormChange}
-                            required
-                            placeholder="Ej: Clase de Matemáticas, Laboratorio de Física..."
-                            className="form-input"
-                        />
-                    </div>
-
-                    {!currentSesion && (
                         <div className="form-group">
-                            <label className="checkbox-label">
-                                <input
-                                    type="checkbox"
-                                    checked={isRecurrence}
-                                    onChange={handleRecurrenceChange}
-                                />
-                                {' '}Crear sesiones recurrentes
-                            </label>
+                            <label htmlFor="idEventoGeneral">Evento General *</label>
+                            <select
+                                id="idEventoGeneral"
+                                name="idEventoGeneral"
+                                value={formData.idEventoGeneral}
+                                onChange={handleFormChange}
+                                required
+                                disabled={!!currentSesion}
+                                className="form-select"
+                            >
+                                <option value="">Seleccione un evento</option>
+                                {eventosGenerales.map(evento => (
+                                    <option key={evento.idEventoGeneral} value={evento.idEventoGeneral}>
+                                        {evento.nombre} ({formatDate(evento.fechaInicio)} - {formatDate(evento.fechaFin)})
+                                        {evento.periodoNombre && ` - Período: ${evento.periodoNombre}`}
+                                    </option>
+                                ))}
+                            </select>
+                            <small className="form-help">Seleccionar el evento principal.</small>
                         </div>
-                    )}
 
-                    {isRecurrence && !currentSesion ? (
-                        <>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label htmlFor="fechaInicioRecurrencia">Fecha Inicio Recurrencia *</label>
-                                    <input
-                                        type="date"
-                                        id="fechaInicioRecurrencia"
-                                        name="fechaInicioRecurrencia"
-                                        value={formData.fechaInicioRecurrencia}
-                                        onChange={handleFormChange}
-                                        required
-                                        disabled
-                                        className="form-input"
-                                    />
-                                    <small className="form-help">Se obtiene automáticamente del evento general seleccionado</small>
-                                </div>
-                                <div className="form-group">
-                                    <label htmlFor="fechaFinRecurrencia">Fecha Fin Recurrencia *</label>
-                                    <input
-                                        type="date"
-                                        id="fechaFinRecurrencia"
-                                        name="fechaFinRecurrencia"
-                                        value={formData.fechaFinRecurrencia}
-                                        onChange={handleFormChange}
-                                        required
-                                        disabled
-                                        className="form-input"
-                                    />
-                                    <small className="form-help">Se obtiene automáticamente del evento general seleccionado</small>
-                                </div>
-                            </div>
+                        <div className="form-group">
+                            <label htmlFor="nombreSesion">Nombre de la Sesión *</label>
+                            <input
+                                type="text"
+                                id="nombreSesion"
+                                name="nombreSesion"
+                                value={formData.nombreSesion}
+                                onChange={handleFormChange}
+                                required
+                                placeholder="Ej: Clase de Matemáticas, Laboratorio de Física..."
+                                className="form-input"
+                            />
+                        </div>
 
+                        {!currentSesion && (
                             <div className="form-group">
-                                <label>Días de la Semana *</label>
-                                <div className="days-grid">
-                                    {daysOfWeek.map(day => (
-                                        <label key={day.value} className="day-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                name="diasSemana"
-                                                value={day.value}
-                                                checked={formData.diasSemana.includes(day.value)}
-                                                onChange={handleFormChange}
-                                            />
-                                            {day.name}
-                                        </label>
-                                    ))}
-                                </div>
+                                <label className="checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={isRecurrence}
+                                        onChange={handleRecurrenceChange}
+                                    />
+                                    {' '}Crear sesiones recurrentes
+                                </label>
                             </div>
-                        </>
-                    ) : (
+                        )}
+
+                        {isRecurrence && !currentSesion ? (
+                            <>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="fechaInicioRecurrencia">Fecha Inicio Recurrencia *</label>
+                                        <input
+                                            type="date"
+                                            id="fechaInicioRecurrencia"
+                                            name="fechaInicioRecurrencia"
+                                            value={formData.fechaInicioRecurrencia}
+                                            onChange={handleFormChange}
+                                            required
+                                            disabled
+                                            className="form-input"
+                                        />
+                                        <small className="form-help">Se obtiene automáticamente del evento general seleccionado</small>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="fechaFinRecurrencia">Fecha Fin Recurrencia *</label>
+                                        <input
+                                            type="date"
+                                            id="fechaFinRecurrencia"
+                                            name="fechaFinRecurrencia"
+                                            value={formData.fechaFinRecurrencia}
+                                            onChange={handleFormChange}
+                                            required
+                                            disabled
+                                            className="form-input"
+                                        />
+                                        <small className="form-help">Se obtiene automáticamente del evento general seleccionado</small>
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Días de la Semana *</label>
+                                    <div className="days-grid">
+                                        {daysOfWeek.map(day => (
+                                            <label key={day.value} className="day-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    name="diasSemana"
+                                                    value={day.value}
+                                                    checked={formData.diasSemana.includes(day.value)}
+                                                    onChange={handleFormChange}
+                                                />
+                                                {day.name}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="form-group">
+                                <label htmlFor="fecha">Fecha *</label>
+                                <input
+                                    type="date"
+                                    id="fecha"
+                                    name="fecha"
+                                    value={formData.fecha}
+                                    onChange={handleFormChange}
+                                    required
+                                    className="form-input"
+                                />
+                            </div>
+                        )}
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="horaInicio">Hora Inicio *</label>
+                                <input
+                                    type="time"
+                                    id="horaInicio"
+                                    name="horaInicio"
+                                    value={formData.horaInicio}
+                                    onChange={handleFormChange}
+                                    required
+                                    className="form-input"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="horaFin">Hora Fin *</label>
+                                <input
+                                    type="time"
+                                    id="horaFin"
+                                    name="horaFin"
+                                    value={formData.horaFin}
+                                    onChange={handleFormChange}
+                                    required
+                                    className="form-input"
+                                />
+                            </div>
+                        </div>
+
                         <div className="form-group">
-                            <label htmlFor="fecha">Fecha *</label>
+                            <label htmlFor="lugar">Lugar</label>
                             <input
-                                type="date"
-                                id="fecha"
-                                name="fecha"
-                                value={formData.fecha}
+                                type="text"
+                                id="lugar"
+                                name="lugar"
+                                value={formData.lugar || ''}
                                 onChange={handleFormChange}
-                                required
+                                placeholder="Ej: Aula A101 (Se hereda del Evento General si se deja vacío en Recurrencia)"
+                                maxLength="200"
                                 className="form-input"
                             />
                         </div>
-                    )}
 
-                    <div className="form-row">
                         <div className="form-group">
-                            <label htmlFor="horaInicio">Hora Inicio *</label>
-                            <input
-                                type="time"
-                                id="horaInicio"
-                                name="horaInicio"
-                                value={formData.horaInicio}
+                            <label htmlFor="descripcion">Descripción</label>
+                            <textarea
+                                id="descripcion"
+                                name="descripcion"
+                                value={formData.descripcion || ''}
                                 onChange={handleFormChange}
-                                required
-                                className="form-input"
+                                placeholder="Descripción opcional de la sesión (Se hereda del Evento General si se deja vacío en Recurrencia)..."
+                                rows="2"
+                                maxLength="500"
+                                className="form-textarea"
                             />
                         </div>
+
                         <div className="form-group">
-                            <label htmlFor="horaFin">Hora Fin *</label>
+                            <label htmlFor="toleranciaMinutos">Tolerancia (minutos)</label>
                             <input
-                                type="time"
-                                id="horaFin"
-                                name="horaFin"
-                                value={formData.horaFin}
+                                type="number"
+                                id="toleranciaMinutos"
+                                name="toleranciaMinutos"
+                                value={formData.toleranciaMinutos}
                                 onChange={handleFormChange}
-                                required
+                                min="0"
+                                max="60"
+                                placeholder="15 (valor por defecto)"
                                 className="form-input"
                             />
+                            <small className="form-help">Si se deja vacío, se usará 15 minutos por defecto</small>
                         </div>
-                    </div>
-
-                    {/* Nuevos campos opcionales: Lugar y Descripción */}
-                    <div className="form-group">
-                        <label htmlFor="lugar">Lugar</label>
-                        <input
-                            type="text"
-                            id="lugar"
-                            name="lugar"
-                            value={formData.lugar || ''}
-                            onChange={handleFormChange}
-                            placeholder="Ej: Aula A101 (Se hereda del Evento General si se deja vacío en Recurrencia)"
-                            maxLength="200"
-                            className="form-input"
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="descripcion">Descripción</label>
-                        <textarea
-                            id="descripcion"
-                            name="descripcion"
-                            value={formData.descripcion || ''}
-                            onChange={handleFormChange}
-                            placeholder="Descripción opcional de la sesión (Se hereda del Evento General si se deja vacío en Recurrencia)..."
-                            rows="2"
-                            maxLength="500"
-                            className="form-textarea"
-                        />
-                    </div>
-                    {/* Fin Nuevos campos opcionales */}
-
-                    <div className="form-group">
-                        <label htmlFor="toleranciaMinutos">Tolerancia (minutos)</label>
-                        <input
-                            type="number"
-                            id="toleranciaMinutos"
-                            name="toleranciaMinutos"
-                            value={formData.toleranciaMinutos}
-                            onChange={handleFormChange}
-                            min="0"
-                            max="60"
-                            placeholder="15 (valor por defecto)"
-                            className="form-input"
-                        />
-                        <small className="form-help">Si se deja vacío, se usará 15 minutos por defecto</small>
                     </div>
                 </div>
 

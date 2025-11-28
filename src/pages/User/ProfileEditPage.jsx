@@ -3,6 +3,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { authService } from '../../services/authService';
 import { personaService } from '../../services/personaService';
 import { TipoPersona } from '../../utils/constants.js';
+import { FaInfoCircle } from 'react-icons/fa';
+import { getRoleFromToken } from '../../utils/jwtHelper'; // Importar el helper
 
 const ProfileEditPage = () => {
     const { isAuthenticated } = useAuth();
@@ -10,6 +12,9 @@ const ProfileEditPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+
+    // Obtener el rol directamente del token para mayor seguridad
+    const userRole = getRoleFromToken(authService.getToken());
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -55,7 +60,6 @@ const ProfileEditPage = () => {
                 throw new Error("No autenticado o perfil no cargado");
             }
 
-            // Construir el objeto que coincide con la entidad Persona del backend
             const dataToSend = {
                 idPersona: profileData.idPersona,
                 nombreCompleto: profileData.nombreCompleto,
@@ -70,7 +74,6 @@ const ProfileEditPage = () => {
                 tipoPersona: profileData.tipoPersona || TipoPersona.ESTUDIANTE,
             };
 
-            // Llamar al servicio con el ID y los datos
             const updatedProfile = await personaService.update(profileData.idPersona, dataToSend, token);
             
             setProfileData(updatedProfile);
@@ -83,7 +86,7 @@ const ProfileEditPage = () => {
         }
     };
 
-    if (loading && !profileData) { // Mostrar spinner solo en la carga inicial
+    if (loading && !profileData) {
         return (
             <div className="main-content">
                 <div className="loading-container">
@@ -94,18 +97,13 @@ const ProfileEditPage = () => {
         );
     }
 
-    if (error && !successMessage) { // No mostrar error si hay un mensaje de éxito
+    if (error && !successMessage) {
         return (
             <div className="main-content">
                 <div className="alert alert-danger">
                     <span className="alert-icon">⚠️</span>
                     <p>{error}</p>
-                    <button
-                        className="alert-close"
-                        onClick={() => setError(null)}
-                    >
-                        &times;
-                    </button>
+                    <button className="alert-close" onClick={() => setError(null)}>&times;</button>
                 </div>
             </div>
         );
@@ -117,6 +115,53 @@ const ProfileEditPage = () => {
                 <div className="alert alert-warning">
                     <span className="alert-icon">⚠️</span>
                     <p>No se pudo cargar la información del perfil.</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Lógica de renderizado condicional basada en el rol del token
+    if (userRole === 'INTEGRANTE') {
+        return (
+            <div className="main-content">
+                <div className="profile-edit-container">
+                    <div className="profile-header">
+                        <h1 className="profile-title">Mi Perfil</h1>
+                        <p className="profile-subtitle">Tu información personal</p>
+                    </div>
+                    <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <FaInfoCircle size={24} />
+                        <div>
+                            <h4>Tus datos no se pueden editar.</h4>
+                            <p>
+                                Tu información es gestionada por la administración. Si necesitas realizar algún cambio, 
+                                por favor, contacta a un administrador del sistema.
+                            </p>
+                        </div>
+                    </div>
+                    {/* Opcional: Mostrar los datos en modo solo lectura */}
+                    <div className="profile-card readonly">
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Nombre Completo</label>
+                                <p className="readonly-value">{profileData.nombreCompleto || 'No disponible'}</p>
+                            </div>
+                            <div className="form-group">
+                                <label>Documento</label>
+                                <p className="readonly-value">{profileData.documento || 'No disponible'}</p>
+                            </div>
+                        </div>
+                         <div className="form-row">
+                            <div className="form-group">
+                                <label>Correo Personal</label>
+                                <p className="readonly-value">{profileData.correo || 'No disponible'}</p>
+                            </div>
+                            <div className="form-group">
+                                <label>Celular</label>
+                                <p className="readonly-value">{profileData.celular || 'No disponible'}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -136,12 +181,7 @@ const ProfileEditPage = () => {
                     <div className="alert alert-success">
                         <span className="alert-icon">✓</span>
                         <p>{successMessage}</p>
-                        <button
-                            className="alert-close"
-                            onClick={() => setSuccessMessage(null)}
-                        >
-                            &times;
-                        </button>
+                        <button className="alert-close" onClick={() => setSuccessMessage(null)}>&times;</button>
                     </div>
                 )}
 
